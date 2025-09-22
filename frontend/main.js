@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -21,9 +21,16 @@ function startPythonBackend() {
 }
 
 function createWindow() {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const screenSize = primaryDisplay.bounds;
     const mainWindow = new BrowserWindow({
-        width: 800,
-        height: 600,
+        width: screenSize.width,
+        height: screenSize.height,
+        fullscreenable: true,
+        autoHideMenuBar: true,
+        fullscreen: false,
+        frames: true,
+        titleBarStyle: 'showen',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
         },
