@@ -1,3 +1,18 @@
+// Переменная для хранения токена в сессии
+let currentToken = null;
+
+// --- Сохраняем токен после успешного логина ---
+// Эта часть кода симулирует получение токена после первого входа
+// В реальном приложении токен придет со страницы логина
+window.addEventListener('DOMContentLoaded', () => {
+    // Попробуем получить токен из sessionStorage, если он там был сохранен
+    currentToken = sessionStorage.getItem('accessToken');
+    if(currentToken) {
+        console.log("Токен загружен из сессии.");
+    }
+});
+
+
 document.getElementById('api-form').addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -13,9 +28,14 @@ document.getElementById('api-form').addEventListener('submit', async (event) => 
         },
     };
 
+    // --- ДОБАВЛЕНИЕ ТОКЕНА В ЗАГОЛОВОК ---
+    // Если токен есть, добавляем его в заголовки Authorization
+    if (currentToken) {
+        requestOptions.headers['Authorization'] = `Bearer ${currentToken}`;
+    }
+
     if (method === 'POST' && bodyText) {
         try {
-            // Проверяем, что в поле body валидный JSON
             JSON.parse(bodyText);
             requestOptions.body = bodyText;
         } catch (error) {
@@ -28,8 +48,16 @@ document.getElementById('api-form').addEventListener('submit', async (event) => 
         const response = await fetch(`http://127.0.0.1:8000${endpoint}`, requestOptions);
         const data = await response.json();
         
-        // Красиво форматируем JSON для вывода
         responseDiv.textContent = JSON.stringify(data, null, 2);
+
+        // --- ЗАПОМИНАЕМ ТОКЕН ПОСЛЕ АВТОРИЗАЦИИ ---
+        // Если это был эндпоинт входа и мы получили токен, сохраняем его
+        if (endpoint === '/api/auth/login' && data.access_token) {
+            currentToken = data.access_token;
+            // Сохраняем токен в sessionStorage, чтобы он не терялся при перезагрузке
+            sessionStorage.setItem('accessToken', currentToken);
+            console.log("Новый токен получен и сохранен!");
+        }
 
     } catch (error) {
         responseDiv.textContent = `Ошибка сети: ${error.message}`;
