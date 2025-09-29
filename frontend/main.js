@@ -42,11 +42,20 @@ function createWindow() {
 
 app.whenReady().then(() => {
     
-    // Слушаем событие 'login-success' от окна
-    ipcMain.on('login-success', (event) => {
-        // Находим окно, из которого пришло событие, и загружаем в него новую страницу
-        const webContents = event.sender;
-        const win = BrowserWindow.fromWebContents(webContents);
+    /// Слушаем событие 'login-success' и принимаем токен
+    ipcMain.on('login-success', (event, token) => {
+        console.log("Токен получен в главном процессе!");
+        userToken = token; // Сохраняем токен
+
+        const win = BrowserWindow.fromWebContents(event.sender);
+        
+        // Как только панель управления будет готова...
+        win.webContents.once('did-finish-load', () => {
+            // ...отправляем ей сохраненный токен
+            console.log("Отправляем токен на страницу панели управления.");
+            win.webContents.send('token-sent', userToken);
+        });
+
         win.loadFile(path.join(__dirname, './html/dashboard_page.html'));
     });
 

@@ -19,8 +19,8 @@ document.getElementById('login-form').addEventListener('submit', async (event) =
         if (response.ok) {
             messageDiv.textContent = `Добро пожаловать, ${data.user_full_name}!`;
             messageDiv.className = 'message success';
-            // Здесь в будущем будет переход на главный экран приложения
-            window.Electron.loginSuccess();
+           // Отправляем полученный токен главному процессу
+            window.electronAPI.loginSuccess(data.access_token);
 
         } else {
             messageDiv.textContent = data.detail || 'Произошла ошибка';

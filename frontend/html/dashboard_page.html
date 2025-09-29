@@ -16,11 +16,16 @@
                     <select id="method" name="method">
                         <option value="POST">POST</option>
                         <option value="GET">GET</option>
+                        <option value="DELETE">DELETE</option>
                     </select>
                     <input type="text" id="endpoint" name="endpoint" value="/api/auth/login" placeholder="Эндпоинт, например, /api/auth/login">
                 </div>
                 <div class="form-row">
                     <textarea id="body" name="body" placeholder="Тело запроса в формате JSON..."></textarea>
+                </div>
+                <div class="templates">
+                    <button class="template-btn" data-method="GET" data-endpoint="/api/patients/">Получить моих пациентов</button>
+                    <button class="template-btn" data-method="POST" data-endpoint="/api/patients/" data-body='{"full_name": "Иванов Иван Иванович", "date_of_birth": "1985-05-20", "contact_info": "+79991234567"}'>Создать пациента</button>
                 </div>
                 <button type="submit">Отправить</button>
             </form>

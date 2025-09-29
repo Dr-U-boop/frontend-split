@@ -1,14 +1,16 @@
-// Переменная для хранения токена в сессии
 let currentToken = null;
 
-// --- Сохраняем токен после успешного логина ---
-// Эта часть кода симулирует получение токена после первого входа
-// В реальном приложении токен придет со страницы логина
-window.addEventListener('DOMContentLoaded', () => {
-    // Попробуем получить токен из sessionStorage, если он там был сохранен
-    currentToken = sessionStorage.getItem('accessToken');
-    if(currentToken) {
-        console.log("Токен загружен из сессии.");
+// --- ПРИНИМАЕМ ТОКЕН ОТ ГЛАВНОГО ПРОЦЕССА ---
+// Эта функция будет вызвана, когда main.js пришлет токен
+window.electronAPI.handleToken((token) => {
+    console.log("Токен получен от главного процесса:", token);
+    currentToken = token;
+    sessionStorage.setItem('accessToken', currentToken);
+    
+    // Опционально: можно вывести приветствие или обновить UI
+    const welcomeMessage = document.getElementById('welcome-message'); // Предполагается, что у вас есть элемент с таким id
+    if(welcomeMessage) {
+        welcomeMessage.textContent = "Токен успешно получен. Готов к работе!";
     }
 });
 
@@ -50,17 +52,17 @@ document.getElementById('api-form').addEventListener('submit', async (event) => 
         
         responseDiv.textContent = JSON.stringify(data, null, 2);
 
-        // --- ЗАПОМИНАЕМ ТОКЕН ПОСЛЕ АВТОРИЗАЦИИ ---
-        // Если это был эндпоинт входа и мы получили токен, сохраняем его
-        if (endpoint === '/api/auth/login' && data.access_token) {
-            currentToken = data.access_token;
-            // Сохраняем токен в sessionStorage, чтобы он не терялся при перезагрузке
-            sessionStorage.setItem('accessToken', currentToken);
-            console.log("Новый токен получен и сохранен!");
-        }
-
     } catch (error) {
         responseDiv.textContent = `Ошибка сети: ${error.message}`;
         console.error('Fetch error:', error);
     }
+});
+
+document.querySelectorAll('.template-btn').forEach(button => {
+    button.addEventListener('click', () => {
+        const form = document.getElementById('api-form');
+        form.method.value = button.dataset.method;
+        form.endpoint.value = button.dataset.endpoint;
+        form.body.value = button.dataset.body ? JSON.stringify(JSON.parse(button.dataset.body), null, 2) : '';
+    });
 });
