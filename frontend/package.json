@@ -8,12 +8,40 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "start": "electron .",
+    "package": "electron-builder"
   },
   "devDependencies": {
-    "electron": "^38.1.2"
+    "electron": "^38.1.2",
+    "electron-builder": "^26.0.12"
   },
   "dependencies": {
     "chart.js": "^4.5.0"
+  },
+  "build": {
+    "appId": "com.medapp.desktop",
+    "productName": "MedApp",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,test-db,log}",
+      "!**/{makefile,Makefile,Gulpfile.js,Gulpfile.babel.js,Gruntfile.js}",
+      "!**/*.{iml,iws,ipr}",
+      "build/icon.*"
+    ],
+    "mac": {
+      "icon": "assets/mac/icons/medical_app.icns",
+      "target": "dmg"
+    }
   }
 }

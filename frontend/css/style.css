@@ -1,0 +1,269 @@
+/* ============================================= */
+/* ==       ГЛОБАЛЬНАЯ ЦВЕТОВАЯ ПАЛИТРА       == */
+/* ============================================= */
+:root {
+    --color-background: #F2F2F0; /* Светло-серый фон */
+    --color-surface: #FFFFFF;     /* Белый для карточек и панелей */
+    --color-text-primary: #465952; /* Тёмный серо-зелёный для основного текста */
+    --color-text-secondary: #737D79; /* Более светлый серо-зелёный для меток */
+    --color-primary: #465952;     /* Основной цвет для кнопок и акцентов */
+    --color-primary-hover: #3A4A44;/* Более тёмный для наведения */
+    --color-accent-pink: #F2A9A2; /* Нежно-розовый для выделения */
+    --color-accent-red: #F24444;  /* Яркий красный для ошибок и предупреждений */
+    --color-accent-green: #28a745; /* Зеленый для успеха */
+    --color-border: #D8D8D6;    /* Цвет для рамок и разделителей */
+}
+
+/* ============================================= */
+/* ==            ОБЩИЕ СТИЛИ И СБРОС          == */
+/* ============================================= */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+}
+
+h1, h2, h3, h4 {
+    color: var(--color-text-primary);
+    margin-top: 0;
+}
+
+button {
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 10px 15px;
+    transition: background-color 0.2s;
+}
+
+input, textarea, select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    box-sizing: border-box;
+    background-color: #fff;
+    color: var(--color-text-primary);
+}
+
+/* ============================================= */
+/* ==         СТРАНИЦА ВХОДА (LOGIN)          == */
+/* ============================================= */
+.login-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-container {
+    background-color: var(--color-surface);
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 320px;
+    text-align: center;
+}
+
+.login-container h2 {
+    margin-bottom: 25px;
+}
+
+.login-container .input-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.login-container label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.login-container .remember-me-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin: 15px 0;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.login-container #remember-me {
+    width: auto;
+    margin-right: 8px;
+}
+
+.login-container button {
+    width: 100%;
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.login-container button:hover {
+    background-color: var(--color-primary-hover);
+}
+
+.login-container .message {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.login-container .message.error { color: var(--color-accent-red); }
+.login-container .message.success { color: var(--color-accent-green); }
+
+
+/* ============================================= */
+/* ==       ПАНЕЛЬ УПРАВЛЕНИЯ (DASHBOARD)     == */
+/* ============================================= */
+.dashboard-container {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 60px 1fr;
+    height: 100vh;
+    grid-template-areas: "header header" "sidebar main";
+}
+
+.dashboard-header {
+    grid-area: header;
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+}
+
+.patients-sidebar {
+    grid-area: sidebar;
+    background-color: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 5px;
+}
+
+.patients-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 15px;
+    overflow-y: auto;
+}
+
+.patient-item {
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+    transition: background-color 0.2s;
+}
+
+.patient-item:hover, .patient-item.active {
+    background-color: var(--color-background);
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.status-ok { background-color: var(--color-accent-green); }
+.status-attention { background-color: var(--color-accent-red); }
+
+.main-content {
+    grid-area: main;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.hidden { display: none; }
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.kpi-card {
+    background-color: var(--color-surface);
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.kpi-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--color-primary);
+    margin-top: 5px;
+}
+
+.chart-container {
+    background-color: var(--color-surface);
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+
+/* ============================================= */
+/* ==      ПАНЕЛЬ ТЕСТИРОВАНИЯ API (SHARED)   == */
+/* ============================================= */
+.api-tester {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: var(--color-surface);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.api-tester .form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.api-tester #method { flex-basis: 120px; }
+.api-tester #endpoint { flex-grow: 1; }
+.api-tester textarea { min-height: 120px; resize: vertical; font-family: monospace; }
+.api-tester .response-container { margin-top: 20px; }
+.api-tester pre {
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    padding: 15px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--color-text-secondary);
+}
+
+.api-tester .templates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.api-tester .template-btn {
+    background-color: var(--color-text-secondary);
+    color: white;
+}
+
+.api-tester .template-btn:hover {
+    background-color: var(--color-text-primary);
+}

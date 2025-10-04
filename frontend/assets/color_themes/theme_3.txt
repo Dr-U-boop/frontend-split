@@ -1,0 +1,20 @@
+/* Color Theme Swatches in Hex */
+.Olink-Insight-1-hex { color: #F266C1; }
+.Olink-Insight-2-hex { color: #A6498D; }
+.Olink-Insight-3-hex { color: #733869; }
+.Olink-Insight-4-hex { color: #01080D; }
+.Olink-Insight-5-hex { color: #8C7632; }
+
+/* Color Theme Swatches in RGBA */
+.Olink-Insight-1-rgba { color: rgba(242, 101, 193, 1); }
+.Olink-Insight-2-rgba { color: rgba(165, 72, 140, 1); }
+.Olink-Insight-3-rgba { color: rgba(114, 56, 104, 1); }
+.Olink-Insight-4-rgba { color: rgba(1, 8, 12, 1); }
+.Olink-Insight-5-rgba { color: rgba(140, 117, 50, 1); }
+
+/* Color Theme Swatches in HSLA */
+.Olink-Insight-1-hsla { color: hsla(320, 84, 67, 1); }
+.Olink-Insight-2-hsla { color: hsla(315, 38, 46, 1); }
+.Olink-Insight-3-hsla { color: hsla(309, 34, 33, 1); }
+.Olink-Insight-4-hsla { color: hsla(202, 83, 2, 1); }
+.Olink-Insight-5-hsla { color: hsla(45, 47, 37, 1); }

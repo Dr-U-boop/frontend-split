@@ -1,0 +1,20 @@
+/* Color Theme Swatches in Hex */
+.2.0-Concepts-1-hex { color: #BF303C; }
+.2.0-Concepts-2-hex { color: #73091D; }
+.2.0-Concepts-3-hex { color: #8C1456; }
+.2.0-Concepts-4-hex { color: #8C7085; }
+.2.0-Concepts-5-hex { color: #381659; }
+
+/* Color Theme Swatches in RGBA */
+.2.0-Concepts-1-rgba { color: rgba(191, 47, 59, 1); }
+.2.0-Concepts-2-rgba { color: rgba(114, 9, 28, 1); }
+.2.0-Concepts-3-rgba { color: rgba(140, 19, 85, 1); }
+.2.0-Concepts-4-rgba { color: rgba(140, 112, 132, 1); }
+.2.0-Concepts-5-rgba { color: rgba(55, 22, 89, 1); }
+
+/* Color Theme Swatches in HSLA */
+.2.0-Concepts-1-hsla { color: hsla(354, 60, 46, 1); }
+.2.0-Concepts-2-hsla { color: hsla(348, 85, 24, 1); }
+.2.0-Concepts-3-hsla { color: hsla(326, 75, 31, 1); }
+.2.0-Concepts-4-hsla { color: hsla(315, 11, 49, 1); }
+.2.0-Concepts-5-hsla { color: hsla(270, 59, 21, 1); }

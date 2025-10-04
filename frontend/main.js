@@ -40,6 +40,7 @@ function createWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const screenSize = primaryDisplay.bounds;
     mainWindow = new BrowserWindow({
+        icon: __dirname + 'assets/mac/icons/medical_app.icns',
         width: screenSize.width,
         height: screenSize.height,
         fullscreenable: true,

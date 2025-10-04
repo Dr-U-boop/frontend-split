@@ -1,0 +1,20 @@
+/* Color Theme Swatches in Hex */
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-1-hex { color: #465952; }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-2-hex { color: #F2F2F0; }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-3-hex { color: #F2A9A2; }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-4-hex { color: #F24444; }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-5-hex { color: #F25C5C; }
+
+/* Color Theme Swatches in RGBA */
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-1-rgba { color: rgba(69, 89, 82, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-2-rgba { color: rgba(242, 242, 239, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-3-rgba { color: rgba(242, 168, 162, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-4-rgba { color: rgba(242, 67, 67, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-5-rgba { color: rgba(242, 92, 92, 1); }
+
+/* Color Theme Swatches in HSLA */
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-1-hsla { color: hsla(157, 12, 31, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-2-hsla { color: hsla(56, 8, 94, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-3-hsla { color: hsla(5, 75, 79, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-4-hsla { color: hsla(0, 87, 60, 1); }
+.HaHo---Mobile-UI-Kit-&-Multibrand-Design-System-5-hsla { color: hsla(0, 85, 65, 1); }
