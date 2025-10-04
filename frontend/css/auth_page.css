@@ -71,7 +71,6 @@ button:hover {
     color: #1e8e3e;
 }
 
-/* Добавьте в конец файла frontend/style.css */
 .container { padding: 20px; max-width: 900px; margin: auto; }
 .api-tester { margin-top: 30px; padding: 20px; background-color: #f9f9f9; border-radius: 8px; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -83,3 +82,12 @@ pre { background-color: #eee; padding: 15px; border-radius: 4px; white-space: pr
 .templates { display: flex; gap: 10px; margin-bottom: 20px; }
 .template-btn { background-color: #6c757d; padding: 8px 12px; border: none; color: white; border-radius: 4px; cursor: pointer; }
 .template-btn:hover { background-color: #5a6268; }
+
+.remember-me-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 10px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}

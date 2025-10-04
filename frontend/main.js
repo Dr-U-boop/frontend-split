@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
+let mainWindow = null;
 let pythonProcess = null;
 
 function startPythonBackend() {
@@ -15,7 +16,22 @@ function startPythonBackend() {
     const cwd = path.join(__dirname, '..', 'backend');
 
     pythonProcess = spawn(pythonExecutable, ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], { cwd });
+    pythonProcess.stderr.on('data', (data) => {
+        const output = data.toString();
+        console.log(`Python: ${output}`);
+        
+        // Ищем в выводе uvicorn строку, подтверждающую запуск
+        if (output.includes("Uvicorn running on")) {
+            console.log("Бэкенд готов! Отправляем сигнал фронтенду.");
+            // Отправляем сигнал в окно, только если оно уже создано
+            if (mainWindow) {
+                mainWindow.webContents.send('backend-ready');
+            }
+        }
 
+        else
+            console.log("Что-то пошло не так")
+    });
     pythonProcess.stdout.on('data', (data) => console.log(`Python: ${data}`));
     pythonProcess.stderr.on('data', (data) => console.error(`Python Error: ${data}`));
 }
@@ -23,7 +39,7 @@ function startPythonBackend() {
 function createWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const screenSize = primaryDisplay.bounds;
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: screenSize.width,
         height: screenSize.height,
         fullscreenable: true,

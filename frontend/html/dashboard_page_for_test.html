@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель управления</title>
+    <link rel="stylesheet" href="../css/auth_page.css"> </head>
+<body>
+    <div class="container">
+        <h1>Панель управления</h1>
+        <p>Добро пожаловать! Здесь вы можете тестировать эндпоинты вашего API.</p>
+
+        <div class="api-tester">
+            <h2>Тестирование API</h2>
+            <form id="api-form">
+                <div class="form-row">
+                    <select id="method" name="method">
+                        <option value="POST">POST</option>
+                        <option value="GET">GET</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                    <input type="text" id="endpoint" name="endpoint" value="/api/auth/login" placeholder="Эндпоинт, например, /api/auth/login">
+                </div>
+                <div class="form-row">
+                    <textarea id="body" name="body" placeholder="Тело запроса в формате JSON..."></textarea>
+                </div>
+                <button type="submit">Отправить</button>
+            </form>
+            <div class="response-container">
+                <h3>Ответ сервера:</h3>
+                <pre id="response"></pre>
+            </div>
+        </div>
+    </div>
+    <script src="../js/dashboard_page_for_test.js"></script>
+</body>
+</html>

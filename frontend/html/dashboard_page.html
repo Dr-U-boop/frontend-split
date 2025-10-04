@@ -3,38 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <title>Панель управления</title>
-    <link rel="stylesheet" href="../css/auth_page.css"> </head>
+    <link rel="stylesheet" href="../css/dashboard_page.css">
+</head>
 <body>
-    <div class="container">
-        <h1>Панель управления</h1>
-        <p>Добро пожаловать! Здесь вы можете тестировать эндпоинты вашего API.</p>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>Панель врача</h1>
+            <div class="doctor-info">
+                <span id="doctor-name"></span>
+                <button id="logout-btn">Выход</button>
+            </div>
+        </header>
 
-        <div class="api-tester">
-            <h2>Тестирование API</h2>
-            <form id="api-form">
-                <div class="form-row">
-                    <select id="method" name="method">
-                        <option value="POST">POST</option>
-                        <option value="GET">GET</option>
-                        <option value="DELETE">DELETE</option>
-                    </select>
-                    <input type="text" id="endpoint" name="endpoint" value="/api/auth/login" placeholder="Эндпоинт, например, /api/auth/login">
-                </div>
-                <div class="form-row">
-                    <textarea id="body" name="body" placeholder="Тело запроса в формате JSON..."></textarea>
-                </div>
+        <aside class="patients-sidebar">
+            <div class="sidebar-header">
+                <h2>Мои пациенты</h2>
+                <button id="add-patient-btn">+</button>
+            </div>
+            <ul id="patients-list" class="patients-list">
+                </ul>
+        </aside>
+
+        <main id="main-content" class="main-content">
+            <div class="api-tester">
+                <h2>Тестирование API</h2>
+                
                 <div class="templates">
                     <button class="template-btn" data-method="GET" data-endpoint="/api/patients/">Получить моих пациентов</button>
-                    <button class="template-btn" data-method="POST" data-endpoint="/api/patients/" data-body='{"full_name": "Иванов Иван Иванович", "date_of_birth": "1985-05-20", "contact_info": "+79991234567"}'>Создать пациента</button>
+                    <button class="template-btn" data-method="POST" data-endpoint="/api/patients/" data-body='{"full_name": "Новый Пациент", "date_of_birth": "1990-01-15", "contact_info": "email@example.com"}'>Создать пациента</button>
+                    <button class="template-btn" data-method="POST" data-endpoint="/api/ingest/" data-body='{"patient_id": 1,"data_points": [{"timestamp": "2025-09-30T22:30:00", "record_type": "glucose", "value": 8.5}]}'>Отправить данные помпы</button>
                 </div>
-                <button type="submit">Отправить</button>
-            </form>
-            <div class="response-container">
-                <h3>Ответ сервера:</h3>
-                <pre id="response"></pre>
+
+                <form id="api-form">
+                    <div class="form-row">
+                        <select id="method" name="method">
+                            <option value="POST">POST</option>
+                            <option value="GET">GET</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+                        <input type="text" id="endpoint" name="endpoint" value="/api/auth/login" placeholder="Эндпоинт, например, /api/auth/login">
+                    </div>
+                    <div class="form-row">
+                        <textarea id="body" name="body" placeholder="Тело запроса в формате JSON..."></textarea>
+                    </div>
+                    <button type="submit">Отправить</button>
+                </form>
+
+                <div class="response-container">
+                    <h3>Ответ сервера:</h3>
+                    <pre id="response"></pre>
+                </div>
             </div>
-        </div>
+
+            <div id="patient-details" class="hidden" style="margin-top: 20px;">
+                <h2 id="patient-name"></h2>
+                <div class="chart-container">
+                    <canvas id="glucose-chart"></canvas>
+                </div>
+            </div>
+        </main>
     </div>
+
+    <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
     <script src="../js/dashboard_page.js"></script>
 </body>
 </html>
