@@ -16,7 +16,9 @@
     "electron-builder": "^26.0.12"
   },
   "dependencies": {
-    "chart.js": "^4.5.0"
+    "chart.js": "^4.5.0",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "date-fns": "^4.1.0"
   },
   "build": {
     "appId": "com.medapp.desktop",

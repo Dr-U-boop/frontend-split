@@ -1,36 +1,30 @@
-// Глобальные переменные для хранения состояния
 let currentToken = null;
+let currentPatientId = null;
 let patients = [];
 let glucoseChart = null;
 
-// --- Получение ссылок на DOM-элементы ---
+// --- DOM Элементы ---
 const patientsListEl = document.getElementById('patients-list');
+const welcomeMessageEl = document.getElementById('welcome-message');
 const patientDetailsEl = document.getElementById('patient-details');
 const patientNameEl = document.getElementById('patient-name');
 const chartCanvas = document.getElementById('glucose-chart').getContext('2d');
-const apiForm = document.getElementById('api-form');
-const responseDiv = document.getElementById('response');
+const recommendationsListEl = document.getElementById('recommendations-list');
+const startDateInput = document.getElementById('start-date');
+const startTimeInput = document.getElementById('start-time');
+const endDateInput = document.getElementById('end-date');
+const endTimeInput = document.getElementById('end-time');
+const updateChartBtn = document.getElementById('update-chart-btn');
+const resetChartBtn = document.getElementById('reset-chart-btn');
 
-// --- Инициализация страницы ---
-
-// 1. Получаем токен от главного процесса Electron
+// --- Инициализация ---
 window.electronAPI.handleToken((token) => {
-    console.log("Токен получен от главного процесса:", token);
     currentToken = token;
     sessionStorage.setItem('accessToken', currentToken);
-    
-    // 2. После получения токена загружаем список пациентов
     fetchAndRenderPatients();
 });
 
-// --- Основные функции ---
-
-/**
- * Обертка для fetch, автоматически добавляющая токен авторизации.
- * @param {string} endpoint - API эндпоинт (например, '/api/patients/')
- * @param {object} options - Опции для fetch (method, body, etc.)
- * @returns {Promise<any>} - JSON-ответ от сервера
- */
+// --- Функции ---
 async function apiFetch(endpoint, options = {}) {
     const defaultOptions = {
         headers: {
@@ -46,20 +40,16 @@ async function apiFetch(endpoint, options = {}) {
     return response.json();
 }
 
-/**
- * Загружает список пациентов с сервера и отображает его в боковой панели.
- */
 async function fetchAndRenderPatients() {
     try {
         patients = await apiFetch('/api/patients/');
-        patientsListEl.innerHTML = ''; // Очищаем старый список
+        patientsListEl.innerHTML = '';
         patients.forEach(patient => {
             const li = document.createElement('li');
             li.className = 'patient-item';
             li.dataset.patientId = patient.id;
-            const statusClass = Math.random() > 0.3 ? 'status-ok' : 'status-attention'; // Демо-статус
+            const statusClass = Math.random() > 0.3 ? 'status-ok' : 'status-attention';
             li.innerHTML = `<div class="status-indicator ${statusClass}"></div><span>${patient.full_name}</span>`;
-            
             li.addEventListener('click', () => {
                 document.querySelectorAll('.patient-item').forEach(item => item.classList.remove('active'));
                 li.classList.add('active');
@@ -67,85 +57,89 @@ async function fetchAndRenderPatients() {
             });
             patientsListEl.appendChild(li);
         });
-    } catch (error) {
-        console.error("Не удалось загрузить пациентов:", error);
-    }
+    } catch (error) { console.error("Не удалось загрузить пациентов:", error); }
 }
 
-/**
- * Отображает детальную информацию о выбранном пациенте.
- * @param {number} patientId - ID пациента
- */
 async function displayPatientDetails(patientId) {
+    currentPatientId = patientId;
     try {
-        const patient = await apiFetch(`/api/patients/${patientId}`);
+        welcomeMessageEl.classList.add('hidden');
         patientDetailsEl.classList.remove('hidden');
+
+        const patient = await apiFetch(`/api/patients/${patientId}`);
         patientNameEl.textContent = patient.full_name;
+
+        startDateInput.value = '';
+        endDateInput.value = '';
+        startTimeInput.value = '';
+        endTimeInput.value = '';
+
+        const [chartData, recommendationsData] = await Promise.all([
+            apiFetch(`/api/patients/${currentPatientId}/comprehensive_data`),
+            apiFetch(`/api/patients/${currentPatientId}/recommendations`)
+        ]);
         
-        const glucoseData = await apiFetch(`/api/patients/${patientId}/glucose_data`);
-        renderGlucoseChart(glucoseData);
-    } catch (error) {
-        console.error("Не удалось загрузить данные пациента:", error);
-    }
+        renderComprehensiveChart(chartData);
+        renderRecommendations(recommendationsData);
+    } catch (error) { console.error("Не удалось загрузить данные пациента:", error); }
 }
 
-/**
- * Рендерит график уровня глюкозы с помощью Chart.js.
- * @param {object} glucoseData - Объект с полями { labels: [], data: [] }
- */
-function renderGlucoseChart(glucoseData) {
-    if (!glucoseData || !glucoseData.labels || !glucoseData.data) return;
-    const data = {
-        labels: glucoseData.labels,
-        datasets: [{
-            label: 'Уровень глюкозы (ммоль/л)',
-            backgroundColor: 'rgba(0, 123, 255, 0.5)',
-            borderColor: 'rgb(0, 123, 255)',
-            data: glucoseData.data,
-            tension: 0.2,
-            pointRadius: 2,
-        }]
-    };
+async function updateComprehensiveChart() {
+    if (!currentPatientId) return;
+    let endpoint = `/api/patients/${currentPatientId}/comprehensive_data`;
+
+    const startDate = startDateInput.value;
+    const endDate = endDateInput.value;
+    if (startDate && endDate) {
+        const startTime = startTimeInput.value || "00:00";
+        const endTime = endTimeInput.value || "23:59";
+        const startISO = `${startDate}T${startTime}`;
+        const endISO = `${endDate}T${endTime}`;
+        endpoint += `?start_datetime=${startISO}&end_datetime=${endISO}`;
+    }
+    
+    try {
+        const chartData = await apiFetch(endpoint);
+        renderComprehensiveChart(chartData);
+    } catch (error) { console.error("Не удалось обновить график:", error); }
+}
+
+function renderComprehensiveChart(apiData) {
     if (glucoseChart) glucoseChart.destroy();
     glucoseChart = new Chart(chartCanvas, {
-        type: 'line',
-        data: data,
-        options: { responsive: true, maintainAspectRatio: false }
+        type: 'bar',
+        data: {
+            datasets: [
+                { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.2, pointRadius: 1 },
+                { type: 'line', label: 'Углеводы (г)', data: apiData.carbs, backgroundColor: 'rgba(255, 7, 7, 0.7)', yAxisID: 'yEvents' },
+                { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, backgroundColor: 'rgba(255, 5, 201, 1)', yAxisID: 'yEvents' }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { decimation: { enabled: true, algorithm: 'lttb', samples: 200, threshold: 500 } },
+            scales: {
+                x: { type: 'time', time: { tooltipFormat: 'dd.MM.yyyy HH:mm' } },
+                yGlucose: { position: 'left', title: { display: true, text: 'Глюкоза (ммоль/л)' } },
+                yEvents: { position: 'right', title: { display: true, text: 'Углеводы (г) / Инсулин (ЕД)' }, grid: { drawOnChartArea: false }, beginAtZero: true }
+            }
+        }
     });
 }
 
-// --- Логика панели тестирования API ---
-
-// Обработчик отправки формы
-apiForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const method = event.target.method.value;
-    const endpoint = event.target.endpoint.value;
-    const bodyText = event.target.body.value;
-    
-    const requestOptions = { method };
-    if (['POST', 'PUT'].includes(method) && bodyText) {
-        try {
-            JSON.parse(bodyText); // Проверка на валидность JSON
-            requestOptions.body = bodyText;
-        } catch (error) {
-            responseDiv.textContent = `Ошибка в JSON: ${error.message}`;
-            return;
-        }
+function renderRecommendations(data) {
+    recommendationsListEl.innerHTML = '';
+    if (data.recommendations && data.recommendations.length > 0) {
+        data.recommendations.forEach(text => {
+            const li = document.createElement('li');
+            li.textContent = text;
+            recommendationsListEl.appendChild(li);
+        });
     }
-    try {
-        const data = await apiFetch(endpoint, requestOptions);
-        responseDiv.textContent = JSON.stringify(data, null, 2);
-    } catch (error) {
-        responseDiv.textContent = `Ошибка: ${error.message}`;
-    }
-});
+}
 
-// Обработчики для кнопок-шаблонов
-document.querySelectorAll('.template-btn').forEach(button => {
-    button.addEventListener('click', () => {
-        apiForm.method.value = button.dataset.method;
-        apiForm.endpoint.value = button.dataset.endpoint;
-        apiForm.body.value = button.dataset.body ? JSON.stringify(JSON.parse(button.dataset.body), null, 2) : '';
-    });
+// --- Обработчики событий ---
+updateChartBtn.addEventListener('click', updateComprehensiveChart);
+resetChartBtn.addEventListener('click', () => {
+    if (currentPatientId) displayPatientDetails(currentPatientId);
 });

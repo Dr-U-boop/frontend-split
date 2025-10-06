@@ -25,39 +25,28 @@
         </aside>
 
         <main id="main-content" class="main-content">
-            <div class="api-tester">
-                <h2>Тестирование API</h2>
-                
-                <div class="templates">
-                    <button class="template-btn" data-method="GET" data-endpoint="/api/patients/">Получить моих пациентов</button>
-                    <button class="template-btn" data-method="POST" data-endpoint="/api/patients/" data-body='{"full_name": "Новый Пациент", "date_of_birth": "1990-01-15", "contact_info": "email@example.com"}'>Создать пациента</button>
-                    <button class="template-btn" data-method="POST" data-endpoint="/api/ingest/" data-body='{"patient_id": 1,"data_points": [{"timestamp": "2025-09-30T22:30:00", "record_type": "glucose", "value": 8.5}]}'>Отправить данные помпы</button>
-                </div>
-
-                <form id="api-form">
-                    <div class="form-row">
-                        <select id="method" name="method">
-                            <option value="POST">POST</option>
-                            <option value="GET">GET</option>
-                            <option value="DELETE">DELETE</option>
-                        </select>
-                        <input type="text" id="endpoint" name="endpoint" value="/api/auth/login" placeholder="Эндпоинт, например, /api/auth/login">
-                    </div>
-                    <div class="form-row">
-                        <textarea id="body" name="body" placeholder="Тело запроса в формате JSON..."></textarea>
-                    </div>
-                    <button type="submit">Отправить</button>
-                </form>
-
-                <div class="response-container">
-                    <h3>Ответ сервера:</h3>
-                    <pre id="response"></pre>
-                </div>
-            </div>
-
-            <div id="patient-details" class="hidden" style="margin-top: 20px;">
+            <div id="welcome-message">Выберите пациента из списка слева, чтобы увидеть информацию.</div>
+            
+            <div id="patient-details" class="hidden">
                 <h2 id="patient-name"></h2>
+
+                <div class="recommendations-container">
+                    <h3>Аналитические Рекомендации</h3>
+                    <ul id="recommendations-list">
+                        </ul>
+                </div>
+
                 <div class="chart-container">
+                    <div class="date-range-picker">
+                        <label for="start-date">С:</label>
+                        <input type="date" id="start-date">
+                        <input type="time" id="start-time">
+                        <label for="end-date">По:</label>
+                        <input type="date" id="end-date">
+                        <input type="time" id="end-time">
+                        <button id="update-chart-btn">Показать</button>
+                        <button id="reset-chart-btn" class="secondary-btn">Сбросить</button>
+                    </div>
                     <canvas id="glucose-chart"></canvas>
                 </div>
             </div>
@@ -65,6 +54,8 @@
     </div>
 
     <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
+    <script src="../node_modules/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!--<script src="chartjs-plugin-decimation.min.js"></script>-->
     <script src="../js/dashboard_page.js"></script>
 </body>
 </html>
