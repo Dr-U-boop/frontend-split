@@ -143,3 +143,75 @@ updateChartBtn.addEventListener('click', updateComprehensiveChart);
 resetChartBtn.addEventListener('click', () => {
     if (currentPatientId) displayPatientDetails(currentPatientId);
 });
+
+const recommendTextEl = document.getElementById('recommendation-text');
+const interpretBtn = document.getElementById('interpret-btn');
+const confirmationFormEl = document.getElementById('confirmation-form');
+const parsedResultsEl = document.getElementById('parsed-results');
+
+interpretBtn.addEventListener('click', async () => {
+    const text = recommendTextEl.value;
+    if (!text || !currentPatientId) return;
+
+    try {
+        const interpretation = await apiFetch(`/api/recommendations/interpret`, {
+            method: 'POST',
+            body: JSON.stringify({ text: text })
+        });
+
+        // Отображаем форму для верификации
+        renderConfirmationForm(interpretation);
+        confirmationFormEl.classList.remove('hidden');
+
+    } catch (error) {
+        alert(`Ошибка интерпретации: ${error.message}`);
+    }
+});
+
+function renderConfirmationForm(data) {
+    parsedResultsEl.innerHTML = ''; // Очищаем старые результаты
+    
+    let htmlContent = '';
+
+    if (data.basal_changes?.length > 0) {
+        data.basal_changes.forEach((change, index) => {
+            const sign = change.change_percent >= 0 ? '+' : '';
+            const typeText = "Базальный Профиль";
+            
+            htmlContent += `
+                <div class="result-card basal-card" data-type="basal" data-index="${index}">
+                    <h5>${typeText}</h5>
+                    <label>Временной сегмент:</label>
+                    <input type="text" class="time-segment" value="${change.time_segment}">
+                    <label>Изменение:</label>
+                    <div class="input-group">
+                        <input type="number" class="change-percent" value="${change.change_percent}">
+                        <span>%</span>
+                    </div>
+                </div>`;
+        });
+    }
+
+    if (data.carb_ratio_changes?.length > 0) {
+        data.carb_ratio_changes.forEach((change, index) => {
+            const typeText = "Углеводный Коэффициент (УК)";
+            
+            htmlContent += `
+                <div class="result-card carb-card" data-type="carb" data-index="${index}">
+                    <h5>${typeText}</h5>
+                    <label>Прием пищи:</label>
+                    <input type="text" class="meal-time" value="${change.meal_time}">
+                    <label>Грамм на 1 ЕД:</label>
+                    <div class="input-group">
+                        <span>1 : </span>
+                        <input type="number" class="carb-value" value="${change.value}">
+                    </div>
+                </div>`;
+        });
+    }
+
+    parsedResultsEl.innerHTML = htmlContent;
+    if (htmlContent === '') {
+        parsedResultsEl.innerHTML = `<p class="no-results">Не удалось извлечь параметры. Попробуйте более точную формулировку.</p>`;
+    }
+}
