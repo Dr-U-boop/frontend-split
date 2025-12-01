@@ -351,28 +351,24 @@ function renderConfirmationForm(data) {
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
 
-tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        // 1. Убираем класс active у всех кнопок и контента
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
+function switchTab(tabId) {
+    tabButtons.forEach(btn => btn.classList.remove('active'));
+    tabContents.forEach(ct => ct.classList.remove('visible'));
 
-        // 2. Добавляем класс active нажатой кнопке
-        button.classList.add('active');
+    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById(`tab-${tabId}`).classList.add('visible');
 
-        // 3. Находим соответствующий контент по data-tab и показываем его
-        const tabId = button.getAttribute('data-tab');
-        const contentToShow = document.getElementById(`tab-${tabId}`);
-        if (contentToShow) {
-            contentToShow.classList.add('active');
-        }
-        
-        // 4. ВАЖНО: Если переключились на вкладку с графиком, обновляем его размер
-        // Chart.js может некорректно отображаться, если он был в display:none
-        if (tabId === 'monitoring' && glucoseChart) {
-            setTimeout(() => {
-                glucoseChart.resize();
-            }, 10); // Небольшая задержка для завершения рендеринга CSS
-        }
+    if (tabId === 'monitoring' && glucoseChart) {
+        setTimeout(() => glucoseChart.resize(), 50);
+    }
+}
+
+tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tabId = btn.getAttribute('data-tab');
+        switchTab(tabId);
     });
 });
+
+// Стартовое состояние
+switchTab('monitoring');
