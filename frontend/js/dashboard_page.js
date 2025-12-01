@@ -16,12 +16,107 @@ const endDateInput = document.getElementById('end-date');
 const endTimeInput = document.getElementById('end-time');
 const updateChartBtn = document.getElementById('update-chart-btn');
 const resetChartBtn = document.getElementById('reset-chart-btn');
+const dashboardContainer = document.getElementById('dashboard-container');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+const patientSearchInput = document.getElementById('patient-search');
+const resizer = document.getElementById('sidebar-resizer');
+
+// --- КОНСТАНТЫ ---
+const SIDEBAR_WIDTH_KEY = 'sidebarWidth';
+const MIN_SIDEBAR_WIDTH = 180;
+const MAX_SIDEBAR_WIDTH = 600;
+const DEFAULT_SIDEBAR_WIDTH = 280;
 
 // --- Инициализация ---
 window.electronAPI.handleToken((token) => {
     currentToken = token;
     sessionStorage.setItem('accessToken', currentToken);
     fetchAndRenderPatients();
+});
+
+// --- ИНИЦИАЛИЗАЦИЯ ШИРИНЫ ПРИ ЗАГРУЗКЕ ---
+// Проверяем, есть ли сохраненная ширина
+const savedSidebarWidth = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+if (savedSidebarWidth) {
+    // Применяем сохраненную ширину
+    dashboardContainer.style.gridTemplateColumns = `${savedSidebarWidth}px 1fr`;
+}
+
+// --- ЛОГИКА СВОРАЧИВАНИЯ МЕНЮ (ОБНОВЛЕННАЯ) ---
+sidebarToggleBtn.addEventListener('click', () => {
+    const isCollapsed = dashboardContainer.classList.toggle('sidebar-collapsed');
+    
+    if (isCollapsed) {
+        // Если свернули - очищаем стиль, чтобы сработал CSS класс (0px)
+        dashboardContainer.style.gridTemplateColumns = ''; 
+    } else {
+        // Если развернули - восстанавливаем сохраненную ширину или дефолтную
+        const widthToRestore = localStorage.getItem(SIDEBAR_WIDTH_KEY) || DEFAULT_SIDEBAR_WIDTH;
+        dashboardContainer.style.gridTemplateColumns = `${widthToRestore}px 1fr`;
+    }
+
+    if (glucoseChart) {
+        setTimeout(() => { glucoseChart.resize(); }, 300);
+    }
+});
+
+// --- ЛОГИКА ИЗМЕНЕНИЯ ШИРИНЫ (RESIZING ОБНОВЛЕННАЯ) ---
+let isResizing = false;
+let currentWidth = DEFAULT_SIDEBAR_WIDTH; // Временная переменная для хранения текущей ширины
+
+resizer.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    resizer.classList.add('resizing');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+
+    // Если начали тянуть свернутое меню - разворачиваем его
+    if (dashboardContainer.classList.contains('sidebar-collapsed')) {
+        dashboardContainer.classList.remove('sidebar-collapsed');
+    }
+
+    let newWidth = e.clientX;
+
+    // Ограничения
+    if (newWidth < MIN_SIDEBAR_WIDTH) newWidth = MIN_SIDEBAR_WIDTH;
+    if (newWidth > MAX_SIDEBAR_WIDTH) newWidth = MAX_SIDEBAR_WIDTH;
+    
+    currentWidth = newWidth; // Запоминаем текущую позицию
+
+    // Применяем стиль
+    dashboardContainer.style.gridTemplateColumns = `${newWidth}px 1fr`;
+});
+
+document.addEventListener('mouseup', () => {
+    if (isResizing) {
+        isResizing = false;
+        resizer.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        
+        // --- НОВОЕ: Сохраняем итоговую ширину в Local Storage ---
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, currentWidth);
+        console.log(`Ширина панели сохранена: ${currentWidth}px`);
+        
+        if (glucoseChart) glucoseChart.resize();
+    }
+});
+
+patientSearchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    
+    // Фильтруем локальный массив patients
+    const filteredPatients = patients.filter(patient => {
+        const nameMatch = patient.full_name.toLowerCase().includes(query);
+        const dobMatch = patient.date_of_birth.includes(query);
+        return nameMatch || dobMatch;
+    });
+
+    renderPatientsList(filteredPatients);
 });
 
 // --- Функции ---
@@ -42,22 +137,55 @@ async function apiFetch(endpoint, options = {}) {
 
 async function fetchAndRenderPatients() {
     try {
+        // Сохраняем ответ сервера в глобальную переменную patients
         patients = await apiFetch('/api/patients/');
-        patientsListEl.innerHTML = '';
-        patients.forEach(patient => {
-            const li = document.createElement('li');
-            li.className = 'patient-item';
-            li.dataset.patientId = patient.id;
-            const statusClass = Math.random() > 0.3 ? 'status-ok' : 'status-attention';
-            li.innerHTML = `<div class="status-indicator ${statusClass}"></div><span>${patient.full_name}</span>`;
-            li.addEventListener('click', () => {
-                document.querySelectorAll('.patient-item').forEach(item => item.classList.remove('active'));
-                li.classList.add('active');
-                displayPatientDetails(patient.id);
-            });
-            patientsListEl.appendChild(li);
+        // Рендерим полный список
+        renderPatientsList(patients);
+    } catch (error) {
+        console.error("Не удалось загрузить пациентов:", error);
+    }
+}
+
+// Выносим рендеринг списка в отдельную функцию для переиспользования в поиске
+function renderPatientsList(patientsArray) {
+    patientsListEl.innerHTML = '';
+    
+    if (patientsArray.length === 0) {
+        patientsListEl.innerHTML = '<li style="padding:10px; color:#999; text-align:center;">Ничего не найдено</li>';
+        return;
+    }
+
+    patientsArray.forEach(patient => {
+        const li = document.createElement('li');
+        li.className = 'patient-item';
+        // Если этот пациент сейчас выбран, добавляем класс active
+        if (patient.id === currentPatientId) {
+            li.classList.add('active');
+        }
+        
+        li.dataset.patientId = patient.id;
+        const statusClass = Math.random() > 0.3 ? 'status-ok' : 'status-attention';
+        
+        // Форматируем дату для отображения (опционально)
+        // const dob = new Date(patient.date_of_birth).toLocaleDateString('ru-RU');
+
+        li.innerHTML = `
+            <div class="status-indicator ${statusClass}"></div>
+            <div style="display:flex; flex-direction:column;">
+                <span style="font-weight:500;">${patient.full_name}</span>
+                <span style="font-size:11px; color:var(--color-text-secondary);">${patient.date_of_birth}</span>
+            </div>
+        `;
+        
+        li.addEventListener('click', () => {
+            document.querySelectorAll('.patient-item').forEach(item => item.classList.remove('active'));
+            li.classList.add('active');
+            // Если экран маленький (мобильный), можно автоматически скрывать меню при выборе
+            // dashboardContainer.classList.add('sidebar-collapsed'); 
+            displayPatientDetails(patient.id);
         });
-    } catch (error) { console.error("Не удалось загрузить пациентов:", error); }
+        patientsListEl.appendChild(li);
+    });
 }
 
 async function displayPatientDetails(patientId) {
@@ -125,6 +253,7 @@ function renderComprehensiveChart(apiData) {
             }
         }
     });
+    glucoseChart.resize();
 }
 
 function renderRecommendations(data) {
@@ -215,3 +344,35 @@ function renderConfirmationForm(data) {
         parsedResultsEl.innerHTML = `<p class="no-results">Не удалось извлечь параметры. Попробуйте более точную формулировку.</p>`;
     }
 }
+
+// ... (В конце файла) ...
+
+// --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
+const tabButtons = document.querySelectorAll('.tab-btn');
+const tabContents = document.querySelectorAll('.tab-content');
+
+tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        // 1. Убираем класс active у всех кнопок и контента
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+
+        // 2. Добавляем класс active нажатой кнопке
+        button.classList.add('active');
+
+        // 3. Находим соответствующий контент по data-tab и показываем его
+        const tabId = button.getAttribute('data-tab');
+        const contentToShow = document.getElementById(`tab-${tabId}`);
+        if (contentToShow) {
+            contentToShow.classList.add('active');
+        }
+        
+        // 4. ВАЖНО: Если переключились на вкладку с графиком, обновляем его размер
+        // Chart.js может некорректно отображаться, если он был в display:none
+        if (tabId === 'monitoring' && glucoseChart) {
+            setTimeout(() => {
+                glucoseChart.resize();
+            }, 10); // Небольшая задержка для завершения рендеринга CSS
+        }
+    });
+});
