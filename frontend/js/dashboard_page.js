@@ -45,10 +45,10 @@ if (savedSidebarWidth) {
 // --- ЛОГИКА СВОРАЧИВАНИЯ МЕНЮ (ОБНОВЛЕННАЯ) ---
 sidebarToggleBtn.addEventListener('click', () => {
     const isCollapsed = dashboardContainer.classList.toggle('sidebar-collapsed');
-    
+
     if (isCollapsed) {
         // Если свернули - очищаем стиль, чтобы сработал CSS класс (0px)
-        dashboardContainer.style.gridTemplateColumns = ''; 
+        dashboardContainer.style.gridTemplateColumns = '';
     } else {
         // Если развернули - восстанавливаем сохраненную ширину или дефолтную
         const widthToRestore = localStorage.getItem(SIDEBAR_WIDTH_KEY) || DEFAULT_SIDEBAR_WIDTH;
@@ -84,7 +84,7 @@ document.addEventListener('mousemove', (e) => {
     // Ограничения
     if (newWidth < MIN_SIDEBAR_WIDTH) newWidth = MIN_SIDEBAR_WIDTH;
     if (newWidth > MAX_SIDEBAR_WIDTH) newWidth = MAX_SIDEBAR_WIDTH;
-    
+
     currentWidth = newWidth; // Запоминаем текущую позицию
 
     // Применяем стиль
@@ -97,18 +97,18 @@ document.addEventListener('mouseup', () => {
         resizer.classList.remove('resizing');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        
+
         // --- НОВОЕ: Сохраняем итоговую ширину в Local Storage ---
         localStorage.setItem(SIDEBAR_WIDTH_KEY, currentWidth);
         console.log(`Ширина панели сохранена: ${currentWidth}px`);
-        
+
         if (glucoseChart) glucoseChart.resize();
     }
 });
 
 patientSearchInput.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase();
-    
+
     // Фильтруем локальный массив patients
     const filteredPatients = patients.filter(patient => {
         const nameMatch = patient.full_name.toLowerCase().includes(query);
@@ -149,7 +149,7 @@ async function fetchAndRenderPatients() {
 // Выносим рендеринг списка в отдельную функцию для переиспользования в поиске
 function renderPatientsList(patientsArray) {
     patientsListEl.innerHTML = '';
-    
+
     if (patientsArray.length === 0) {
         patientsListEl.innerHTML = '<li style="padding:10px; color:#999; text-align:center;">Ничего не найдено</li>';
         return;
@@ -162,10 +162,10 @@ function renderPatientsList(patientsArray) {
         if (patient.id === currentPatientId) {
             li.classList.add('active');
         }
-        
+
         li.dataset.patientId = patient.id;
         const statusClass = Math.random() > 0.3 ? 'status-ok' : 'status-attention';
-        
+
         // Форматируем дату для отображения (опционально)
         // const dob = new Date(patient.date_of_birth).toLocaleDateString('ru-RU');
 
@@ -176,7 +176,7 @@ function renderPatientsList(patientsArray) {
                 <span style="font-size:11px; color:var(--color-text-secondary);">${patient.date_of_birth}</span>
             </div>
         `;
-        
+
         li.addEventListener('click', () => {
             document.querySelectorAll('.patient-item').forEach(item => item.classList.remove('active'));
             li.classList.add('active');
@@ -206,7 +206,7 @@ async function displayPatientDetails(patientId) {
             apiFetch(`/api/patients/${currentPatientId}/comprehensive_data`),
             apiFetch(`/api/patients/${currentPatientId}/recommendations`)
         ]);
-        
+
         renderComprehensiveChart(chartData);
         renderRecommendations(recommendationsData);
     } catch (error) { console.error("Не удалось загрузить данные пациента:", error); }
@@ -225,7 +225,7 @@ async function updateComprehensiveChart() {
         const endISO = `${endDate}T${endTime}`;
         endpoint += `?start_datetime=${startISO}&end_datetime=${endISO}`;
     }
-    
+
     try {
         const chartData = await apiFetch(endpoint);
         renderComprehensiveChart(chartData);
@@ -299,14 +299,14 @@ interpretBtn.addEventListener('click', async () => {
 
 function renderConfirmationForm(data) {
     parsedResultsEl.innerHTML = ''; // Очищаем старые результаты
-    
+
     let htmlContent = '';
 
     if (data.basal_changes?.length > 0) {
         data.basal_changes.forEach((change, index) => {
             const sign = change.change_percent >= 0 ? '+' : '';
             const typeText = "Базальный Профиль";
-            
+
             htmlContent += `
                 <div class="result-card basal-card" data-type="basal" data-index="${index}">
                     <h5>${typeText}</h5>
@@ -324,7 +324,7 @@ function renderConfirmationForm(data) {
     if (data.carb_ratio_changes?.length > 0) {
         data.carb_ratio_changes.forEach((change, index) => {
             const typeText = "Углеводный Коэффициент (УК)";
-            
+
             htmlContent += `
                 <div class="result-card carb-card" data-type="carb" data-index="${index}">
                     <h5>${typeText}</h5>
@@ -347,6 +347,19 @@ function renderConfirmationForm(data) {
 
 // ... (В конце файла) ...
 
+// --- ЛОГИКА СИМУЛЯТОРА ---
+async function loadPatientParameters(patientId) {
+    const codeEl = document.getElementById('sim-params-code');
+    codeEl.textContent = 'Загрузка параметров...';
+    try {
+        const data = await apiFetch(`/api/patients/${patientId}/parameters`);
+        codeEl.textContent = JSON.stringify(data, null, 4); // Pretty print
+    } catch (error) {
+        console.error("Failed to load parameters:", error);
+        codeEl.textContent = `Ошибка загрузки: ${error.message}`;
+    }
+}
+
 // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -360,6 +373,10 @@ function switchTab(tabId) {
 
     if (tabId === 'monitoring' && glucoseChart) {
         setTimeout(() => glucoseChart.resize(), 50);
+    }
+
+    if (tabId === 'patient-sim' && currentPatientId) {
+        loadPatientParameters(currentPatientId);
     }
 }
 
