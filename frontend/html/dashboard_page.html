@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <title>Панель управления</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <div class="dashboard-container" id="dashboard-container">
         <header class="dashboard-header">
@@ -25,87 +27,92 @@
                 <h2>Мои пациенты</h2>
                 <button id="add-patient-btn" title="Добавить пациента">+</button>
             </div>
-            
+
             <div class="search-container">
                 <input type="text" id="patient-search" placeholder="Поиск (ФИО, дата рожд.)...">
             </div>
 
             <ul id="patients-list" class="patients-list">
-                </ul>
+            </ul>
             <div id="sidebar-resizer" class="resizer"></div>
         </aside>
 
         <main id="main-content" class="main-content">
-    <div id="welcome-message">Выберите пациента из списка слева, чтобы увидеть информацию.</div>
-    
-    <div id="patient-details" class="hidden">
-        <div class="patient-header-wrapper">
-            <h2 id="patient-name" style="margin-bottom: 15px;">Имя пациента</h2>
-            <div class="tabs">
-                <button class="tab-btn" data-tab="monitoring">Мониторинг</button>
-                <button class="tab-btn" data-tab="patient-card">Карточка пациента</button>  
-                <button class="tab-btn" data-tab="patient-sim">Симулятор</button>  
-            </div>
-        </div>
+            <div id="welcome-message">Выберите пациента из списка слева, чтобы увидеть информацию.</div>
 
-        <div id="tab-monitoring" class="tab-content">
-            <div class="chart-container content-box">
-                <div class="date-range-picker">
-                    <label>С:</label>
-                    <input type="date" id="start-date"><input type="time" id="start-time">
-                    <label>По:</label>
-                    <input type="date" id="end-date"><input type="time" id="end-time">
-                    <button id="update-chart-btn">Показать</button>
-                    <button id="reset-chart-btn" class="secondary-btn">Сбросить</button>
-                </div>
-                <canvas id="glucose-chart"></canvas>
-            </div>
-
-            <div class="recommendation-editor-container content-box">
-                <h3>Редактор рекомендаций</h3>
-                <p>Введите рекомендации. Ассистент преобразует их в параметры.</p>
-                <textarea id="recommendation-text" placeholder="Пример: Снизить базальный инсулин ночью..."></textarea>
-                <button id="interpret-btn">Интерпретировать</button>
-                <div id="confirmation-form" class="hidden card-form">
-                    <h4>Проверьте параметры:</h4>
-                    <div id="parsed-results" class="results-grid"></div>
-                    <button id="confirm-btn" class="confirm-btn primary-btn">Подтвердить</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="tab-patient-card" class="tab-content">
-            <div class="content-box patient-info-full">
-                <div class="card-section">
-                    <h4>Основные данные</h4>
-                    <div class="info-grid">
-                        <p><strong>Возраст:</strong> <span id="card-age">34 года</span></p>
-                        <p><strong>Дата рождения:</strong> <span id="card-dob">12.05.1990</span></p>
-                        <p><strong>Диабет с:</strong> <span id="card-diag-since">2010 г.</span></p>
-                        <p><strong>Тип диабета:</strong> <span id="card-type">1 тип</span></p>
+            <div id="patient-details" class="hidden">
+                <div class="patient-header-wrapper">
+                    <h2 id="patient-name" style="margin-bottom: 15px;">Имя пациента</h2>
+                    <div class="tabs">
+                        <button class="tab-btn" data-tab="monitoring">Мониторинг</button>
+                        <button class="tab-btn" data-tab="patient-card">Карточка пациента</button>
+                        <button class="tab-btn" data-tab="patient-sim">Симулятор</button>
                     </div>
                 </div>
 
-                <div class="card-section">
-                    <h4>Назначенная терапия</h4>
-                    <ul>
-                        <li>Базальный инсулин: <span id="card-basal-therapy">Лантус (24 ЕД/сутки)</span></li>
-                        <li>Болюсный инсулин: <span id="card-bolus-therapy">Хумалог (УК 1:10)</span></li>
-                        <li>Тип помпы: <span id="card-pump-model">Medtronic 780G</span></li>
-                    </ul>
-                </div>
-                
-                <div class="card-section">
-                    <h4>Динамика и Жалобы</h4>
-                    <p><strong>Последний HbA1c:</strong> <span id="card-hba1c">6.5%</span> (от 10.09.2025)</p>
-                    <p><strong>Диагноз:</strong> <span id="card-diagnosis">Сахарный диабет 1 типа, стадия компенсации.</span></p>
-                    <p><strong>Жалобы:</strong> <span id="card-complaints">Периодические ночные гипогликемии. Усталость во второй половине дня.</span></p>
-                </div>
-            </div>
-        </div>
+                <div id="tab-monitoring" class="tab-content">
+                    <div class="chart-container content-box">
+                        <div class="date-range-picker">
+                            <label>С:</label>
+                            <input type="date" id="start-date"><input type="time" id="start-time">
+                            <label>По:</label>
+                            <input type="date" id="end-date"><input type="time" id="end-time">
+                            <button id="update-chart-btn">Показать</button>
+                            <button id="reset-chart-btn" class="secondary-btn">Сбросить</button>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="glucose-chart"></canvas>
+                        </div>
+                    </div>
 
-    </div>
-</main>
+                    <div class="recommendation-editor-container content-box">
+                        <h3>Редактор рекомендаций</h3>
+                        <p>Введите рекомендации. Ассистент преобразует их в параметры.</p>
+                        <textarea id="recommendation-text"
+                            placeholder="Пример: Снизить базальный инсулин ночью..."></textarea>
+                        <button id="interpret-btn">Интерпретировать</button>
+                        <div id="confirmation-form" class="hidden card-form">
+                            <h4>Проверьте параметры:</h4>
+                            <div id="parsed-results" class="results-grid"></div>
+                            <button id="confirm-btn" class="confirm-btn primary-btn">Подтвердить</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-patient-card" class="tab-content">
+                    <div class="content-box patient-info-full">
+                        <div class="card-section">
+                            <h4>Основные данные</h4>
+                            <div class="info-grid">
+                                <p><strong>Возраст:</strong> <span id="card-age">34 года</span></p>
+                                <p><strong>Дата рождения:</strong> <span id="card-dob">12.05.1990</span></p>
+                                <p><strong>Диабет с:</strong> <span id="card-diag-since">2010 г.</span></p>
+                                <p><strong>Тип диабета:</strong> <span id="card-type">1 тип</span></p>
+                            </div>
+                        </div>
+
+                        <div class="card-section">
+                            <h4>Назначенная терапия</h4>
+                            <ul>
+                                <li>Базальный инсулин: <span id="card-basal-therapy">Лантус (24 ЕД/сутки)</span></li>
+                                <li>Болюсный инсулин: <span id="card-bolus-therapy">Хумалог (УК 1:10)</span></li>
+                                <li>Тип помпы: <span id="card-pump-model">Medtronic 780G</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="card-section">
+                            <h4>Динамика и Жалобы</h4>
+                            <p><strong>Последний HbA1c:</strong> <span id="card-hba1c">6.5%</span> (от 10.09.2025)</p>
+                            <p><strong>Диагноз:</strong> <span id="card-diagnosis">Сахарный диабет 1 типа, стадия
+                                    компенсации.</span></p>
+                            <p><strong>Жалобы:</strong> <span id="card-complaints">Периодические ночные гипогликемии.
+                                    Усталость во второй половине дня.</span></p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
     </div>
 
     <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
@@ -113,4 +120,5 @@
     <!--<script src="chartjs-plugin-decimation.min.js"></script>-->
     <script src="../js/dashboard_page.js"></script>
 </body>
+
 </html>
