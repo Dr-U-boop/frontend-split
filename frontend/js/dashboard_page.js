@@ -360,6 +360,19 @@ async function loadPatientParameters(patientId) {
     }
 }
 
+async function loadSimulatorScenarios() {
+    if (!currentPatientId) return;
+    const codeEl = document.getElementById('sim-scenario-code');
+    codeEl.textContent = 'Загрузка сценариев...';
+    try {
+        const data = await apiFetch(`/api/patients/${currentPatientId}/scenarios`);
+        codeEl.textContent = JSON.stringify(data, null, 4);
+    } catch (error) {
+        console.error("Failed to load scenarios:", error);
+        codeEl.textContent = `Ошибка загрузки: ${error.message}`;
+    }
+}
+
 // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -377,6 +390,7 @@ function switchTab(tabId) {
 
     if (tabId === 'patient-sim' && currentPatientId) {
         loadPatientParameters(currentPatientId);
+        loadSimulatorScenarios();
     }
 }
 
