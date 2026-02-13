@@ -2,6 +2,10 @@ let currentToken = null;
 let currentPatientId = null;
 let patients = [];
 let glucoseChart = null;
+let comprehensiveData = null;
+let currentMonitoringView = 'chart';
+const patientStatusById = new Map();
+const STATUS_PRIORITY = ['status-attention', 'status-warning', 'status-ok'];
 
 // --- DOM Элементы ---
 const patientsListEl = document.getElementById('patients-list');
@@ -20,6 +24,25 @@ const dashboardContainer = document.getElementById('dashboard-container');
 const sidebarToggleBtn = document.getElementById('sidebar-toggle');
 const patientSearchInput = document.getElementById('patient-search');
 const resizer = document.getElementById('sidebar-resizer');
+const chartWrapperEl = document.querySelector('.chart-wrapper');
+const tableWrapperEl = document.getElementById('comprehensive-table-wrapper');
+const comprehensiveTableBodyEl = document.getElementById('comprehensive-table-body');
+const viewChartBtn = document.getElementById('view-chart-btn');
+const viewTableBtn = document.getElementById('view-table-btn');
+const lastDayRangeBtn = document.getElementById('range-last-day-btn');
+const lastMonthRangeBtn = document.getElementById('range-last-month-btn');
+const lastThreeMonthsRangeBtn = document.getElementById('range-last-3-months-btn');
+const statsPeriodLabelEl = document.getElementById('stats-period-label');
+const statReadingsCountEl = document.getElementById('stat-readings-count');
+const statAvgGlucoseEl = document.getElementById('stat-avg-glucose');
+const statMinGlucoseEl = document.getElementById('stat-min-glucose');
+const statMaxGlucoseEl = document.getElementById('stat-max-glucose');
+const statStdGlucoseEl = document.getElementById('stat-std-glucose');
+const statTirEl = document.getElementById('stat-tir');
+const statHypoCountEl = document.getElementById('stat-hypo-count');
+const statHyperCountEl = document.getElementById('stat-hyper-count');
+const statTotalCarbsEl = document.getElementById('stat-total-carbs');
+const statTotalInsulinEl = document.getElementById('stat-total-insulin');
 
 // --- КОНСТАНТЫ ---
 const SIDEBAR_WIDTH_KEY = 'sidebarWidth';
@@ -139,6 +162,7 @@ async function fetchAndRenderPatients() {
     try {
         // Сохраняем ответ сервера в глобальную переменную patients
         patients = await apiFetch('/api/patients/');
+        assignAndNormalizePatientStatuses(patients);
         // Рендерим полный список
         renderPatientsList(patients);
     } catch (error) {
@@ -155,19 +179,23 @@ function renderPatientsList(patientsArray) {
         return;
     }
 
-    patientsArray.forEach(patient => {
+    const sortedPatients = [...patientsArray].sort((a, b) => {
+        const statusA = getOrCreatePatientStatus(a.id);
+        const statusB = getOrCreatePatientStatus(b.id);
+        const statusDiff = STATUS_PRIORITY.indexOf(statusA) - STATUS_PRIORITY.indexOf(statusB);
+        if (statusDiff !== 0) return statusDiff;
+        return a.full_name.localeCompare(b.full_name, 'ru');
+    });
+
+    sortedPatients.forEach(patient => {
         const li = document.createElement('li');
         li.className = 'patient-item';
-        // Если этот пациент сейчас выбран, добавляем класс active
         if (patient.id === currentPatientId) {
             li.classList.add('active');
         }
 
         li.dataset.patientId = patient.id;
-        const statusClass = Math.random() > 0.3 ? 'status-ok' : 'status-attention';
-
-        // Форматируем дату для отображения (опционально)
-        // const dob = new Date(patient.date_of_birth).toLocaleDateString('ru-RU');
+        const statusClass = getOrCreatePatientStatus(patient.id);
 
         li.innerHTML = `
             <div class="status-indicator ${statusClass}"></div>
@@ -180,11 +208,53 @@ function renderPatientsList(patientsArray) {
         li.addEventListener('click', () => {
             document.querySelectorAll('.patient-item').forEach(item => item.classList.remove('active'));
             li.classList.add('active');
-            // Если экран маленький (мобильный), можно автоматически скрывать меню при выборе
-            // dashboardContainer.classList.add('sidebar-collapsed'); 
             displayPatientDetails(patient.id);
         });
         patientsListEl.appendChild(li);
+    });
+}
+
+function getRandomStatus() {
+    return STATUS_PRIORITY[Math.floor(Math.random() * STATUS_PRIORITY.length)];
+}
+
+function getOrCreatePatientStatus(patientId) {
+    if (!patientStatusById.has(patientId)) {
+        patientStatusById.set(patientId, getRandomStatus());
+    }
+    return patientStatusById.get(patientId);
+}
+
+function assignAndNormalizePatientStatuses(patientsArray) {
+    const incomingIds = new Set(patientsArray.map((patient) => patient.id));
+
+    Array.from(patientStatusById.keys()).forEach((patientId) => {
+        if (!incomingIds.has(patientId)) {
+            patientStatusById.delete(patientId);
+        }
+    });
+
+    patientsArray.forEach((patient) => {
+        getOrCreatePatientStatus(patient.id);
+    });
+
+    if (patientsArray.length < STATUS_PRIORITY.length) return;
+
+    const statusBuckets = new Map(STATUS_PRIORITY.map((status) => [status, []]));
+    patientsArray.forEach((patient) => {
+        const status = getOrCreatePatientStatus(patient.id);
+        statusBuckets.get(status).push(patient.id);
+    });
+
+    STATUS_PRIORITY.forEach((requiredStatus) => {
+        if (statusBuckets.get(requiredStatus).length > 0) return;
+
+        const donorStatus = STATUS_PRIORITY.find((status) => statusBuckets.get(status).length > 1);
+        if (!donorStatus) return;
+
+        const donorPatientId = statusBuckets.get(donorStatus).pop();
+        patientStatusById.set(donorPatientId, requiredStatus);
+        statusBuckets.get(requiredStatus).push(donorPatientId);
     });
 }
 
@@ -207,7 +277,8 @@ async function displayPatientDetails(patientId) {
             apiFetch(`/api/patients/${currentPatientId}/recommendations`)
         ]);
 
-        renderComprehensiveChart(chartData);
+        comprehensiveData = chartData;
+        renderComprehensiveView();
         renderRecommendations(recommendationsData);
     } catch (error) { console.error("Не удалось загрузить данные пациента:", error); }
 }
@@ -227,9 +298,205 @@ async function updateComprehensiveChart() {
     }
 
     try {
-        const chartData = await apiFetch(endpoint);
-        renderComprehensiveChart(chartData);
+        comprehensiveData = await apiFetch(endpoint);
+        renderComprehensiveView();
     } catch (error) { console.error("Не удалось обновить график:", error); }
+}
+
+function formatDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function formatTimeInputValue(date) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
+function setQuickRangeActiveButton(activeButton) {
+    [lastDayRangeBtn, lastMonthRangeBtn, lastThreeMonthsRangeBtn].forEach((btn) => {
+        if (!btn) return;
+        btn.classList.toggle('active', btn === activeButton);
+    });
+}
+
+function applyQuickRange(period) {
+    const end = new Date();
+    const start = new Date(end);
+
+    if (period === 'day') {
+        start.setDate(start.getDate() - 1);
+    } else if (period === 'month') {
+        start.setMonth(start.getMonth() - 1);
+    } else if (period === '3months') {
+        start.setMonth(start.getMonth() - 3);
+    }
+
+    startDateInput.value = formatDateInputValue(start);
+    startTimeInput.value = formatTimeInputValue(start);
+    endDateInput.value = formatDateInputValue(end);
+    endTimeInput.value = formatTimeInputValue(end);
+
+    updateComprehensiveChart();
+}
+
+function formatTimestampForTable(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('ru-RU');
+}
+
+function toNumberArray(points) {
+    return (points || [])
+        .map((point) => Number(point.y))
+        .filter((value) => Number.isFinite(value));
+}
+
+function sum(values) {
+    return values.reduce((acc, value) => acc + value, 0);
+}
+
+function roundTo(value, digits = 1) {
+    return Number(value).toFixed(digits);
+}
+
+function updateStatValue(element, value) {
+    if (!element) return;
+    element.textContent = value;
+}
+
+function resetStatistics() {
+    updateStatValue(statReadingsCountEl, '-');
+    updateStatValue(statAvgGlucoseEl, '-');
+    updateStatValue(statMinGlucoseEl, '-');
+    updateStatValue(statMaxGlucoseEl, '-');
+    updateStatValue(statStdGlucoseEl, '-');
+    updateStatValue(statTirEl, '-');
+    updateStatValue(statHypoCountEl, '-');
+    updateStatValue(statHyperCountEl, '-');
+    updateStatValue(statTotalCarbsEl, '-');
+    updateStatValue(statTotalInsulinEl, '-');
+}
+
+function renderPeriodStatistics(apiData) {
+    if (!apiData) {
+        updateStatValue(statsPeriodLabelEl, 'Период: не выбран');
+        resetStatistics();
+        return;
+    }
+
+    const glucoseValues = toNumberArray(apiData.glucose);
+    const carbsValues = toNumberArray(apiData.carbs);
+    const insulinValues = toNumberArray(apiData.insulin);
+
+    const startDateTime = startDateInput.value && startTimeInput.value ? `${startDateInput.value} ${startTimeInput.value}` : '';
+    const endDateTime = endDateInput.value && endTimeInput.value ? `${endDateInput.value} ${endTimeInput.value}` : '';
+    const periodText = startDateTime && endDateTime
+        ? `Период: ${startDateTime} - ${endDateTime}`
+        : 'Период: последние 7 дней (по умолчанию)';
+    updateStatValue(statsPeriodLabelEl, periodText);
+
+    if (glucoseValues.length === 0) {
+        resetStatistics();
+        return;
+    }
+
+    const glucoseCount = glucoseValues.length;
+    const glucoseSum = sum(glucoseValues);
+    const glucoseAvg = glucoseSum / glucoseCount;
+    const glucoseMin = Math.min(...glucoseValues);
+    const glucoseMax = Math.max(...glucoseValues);
+    const variance = glucoseValues.reduce((acc, value) => acc + (value - glucoseAvg) ** 2, 0) / glucoseCount;
+    const stdDev = Math.sqrt(variance);
+
+    const inRangeCount = glucoseValues.filter((value) => value >= 3.9 && value <= 10.0).length;
+    const hypoCount = glucoseValues.filter((value) => value < 3.9).length;
+    const hyperCount = glucoseValues.filter((value) => value > 10.0).length;
+    const tir = (inRangeCount / glucoseCount) * 100;
+
+    const totalCarbs = sum(carbsValues);
+    const totalInsulin = sum(insulinValues);
+
+    updateStatValue(statReadingsCountEl, String(glucoseCount));
+    updateStatValue(statAvgGlucoseEl, `${roundTo(glucoseAvg)} ммоль/л`);
+    updateStatValue(statMinGlucoseEl, `${roundTo(glucoseMin)} ммоль/л`);
+    updateStatValue(statMaxGlucoseEl, `${roundTo(glucoseMax)} ммоль/л`);
+    updateStatValue(statStdGlucoseEl, roundTo(stdDev, 2));
+    updateStatValue(statTirEl, `${roundTo(tir, 1)}%`);
+    updateStatValue(statHypoCountEl, String(hypoCount));
+    updateStatValue(statHyperCountEl, String(hyperCount));
+    updateStatValue(statTotalCarbsEl, roundTo(totalCarbs, 1));
+    updateStatValue(statTotalInsulinEl, roundTo(totalInsulin, 1));
+}
+
+function buildRowMap(points) {
+    const map = new Map();
+    points.forEach((point) => {
+        if (point && point.x !== undefined && point.y !== undefined) {
+            map.set(String(point.x), point.y);
+        }
+    });
+    return map;
+}
+
+function renderComprehensiveTable(apiData) {
+    comprehensiveTableBodyEl.innerHTML = '';
+    if (!apiData) return;
+
+    const glucoseMap = buildRowMap(apiData.glucose || []);
+    const carbsMap = buildRowMap(apiData.carbs || []);
+    const insulinMap = buildRowMap(apiData.insulin || []);
+
+    const timestamps = new Set([
+        ...glucoseMap.keys(),
+        ...carbsMap.keys(),
+        ...insulinMap.keys()
+    ]);
+
+    const sortedTimestamps = Array.from(timestamps).sort((a, b) => new Date(a) - new Date(b));
+
+    if (sortedTimestamps.length === 0) {
+        comprehensiveTableBodyEl.innerHTML = '<tr><td colspan="4">Нет данных за выбранный период</td></tr>';
+        return;
+    }
+
+    sortedTimestamps.forEach((timestamp) => {
+        const row = document.createElement('tr');
+        const glucose = glucoseMap.get(timestamp);
+        const carbs = carbsMap.get(timestamp);
+        const insulin = insulinMap.get(timestamp);
+
+        row.innerHTML = `
+            <td>${formatTimestampForTable(timestamp)}</td>
+            <td>${glucose ?? '-'}</td>
+            <td>${carbs ?? '-'}</td>
+            <td>${insulin ?? '-'}</td>
+        `;
+        comprehensiveTableBodyEl.appendChild(row);
+    });
+}
+
+function updateMonitoringViewUI() {
+    const isChart = currentMonitoringView === 'chart';
+    chartWrapperEl.classList.toggle('hidden', !isChart);
+    tableWrapperEl.classList.toggle('hidden', isChart);
+    viewChartBtn.classList.toggle('active', isChart);
+    viewTableBtn.classList.toggle('active', !isChart);
+
+    if (isChart && glucoseChart) {
+        setTimeout(() => glucoseChart.resize(), 0);
+    }
+}
+
+function renderComprehensiveView() {
+    if (!comprehensiveData) return;
+    renderComprehensiveChart(comprehensiveData);
+    renderComprehensiveTable(comprehensiveData);
+    renderPeriodStatistics(comprehensiveData);
+    updateMonitoringViewUI();
 }
 
 function renderComprehensiveChart(apiData) {
@@ -238,9 +505,9 @@ function renderComprehensiveChart(apiData) {
         type: 'line',
         data: {
             datasets: [
-                { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.5, pointRadius: 0, pointHoverRadius: 5 },
-                { type: 'line', label: 'Углеводы (г)', data: apiData.carbs, backgroundColor: 'rgba(255, 7, 7, 0.7)', yAxisID: 'yEvents' },
-                { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, backgroundColor: 'rgba(255, 5, 201, 1)', yAxisID: 'yEvents' }
+                { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.5, pointRadius: 2, pointHoverRadius: 5 },
+                { type: 'line', label: 'Углеводы (г)', data: apiData.carbs, backgroundColor: 'rgba(255, 7, 7, 0.7)', yAxisID: 'yEvents', tension: 0.5 },
+                { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, backgroundColor: 'rgba(255, 5, 201, 1)', yAxisID: 'yEvents', tension: 0.5 }
             ]
         },
         options: {
@@ -271,6 +538,29 @@ function renderRecommendations(data) {
 updateChartBtn.addEventListener('click', updateComprehensiveChart);
 resetChartBtn.addEventListener('click', () => {
     if (currentPatientId) displayPatientDetails(currentPatientId);
+});
+viewChartBtn.addEventListener('click', () => {
+    currentMonitoringView = 'chart';
+    updateMonitoringViewUI();
+});
+viewTableBtn.addEventListener('click', () => {
+    currentMonitoringView = 'table';
+    updateMonitoringViewUI();
+});
+lastDayRangeBtn.addEventListener('click', () => {
+    setQuickRangeActiveButton(lastDayRangeBtn);
+    applyQuickRange('day');
+});
+lastMonthRangeBtn.addEventListener('click', () => {
+    setQuickRangeActiveButton(lastMonthRangeBtn);
+    applyQuickRange('month');
+});
+lastThreeMonthsRangeBtn.addEventListener('click', () => {
+    setQuickRangeActiveButton(lastThreeMonthsRangeBtn);
+    applyQuickRange('3months');
+});
+[startDateInput, startTimeInput, endDateInput, endTimeInput].forEach((input) => {
+    input.addEventListener('input', () => setQuickRangeActiveButton(null));
 });
 
 const recommendTextEl = document.getElementById('recommendation-text');

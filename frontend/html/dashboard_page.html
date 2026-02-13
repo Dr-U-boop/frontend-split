@@ -59,9 +59,48 @@
                             <input type="date" id="end-date"><input type="time" id="end-time">
                             <button id="update-chart-btn">Показать</button>
                             <button id="reset-chart-btn" class="secondary-btn">Сбросить</button>
+                            <div class="quick-range-group">
+                                <button type="button" id="range-last-day-btn" class="quick-range-btn">Последний день</button>
+                                <button type="button" id="range-last-month-btn" class="quick-range-btn">Последний месяц</button>
+                                <button type="button" id="range-last-3-months-btn" class="quick-range-btn">Последние 3 месяца</button>
+                            </div>
+                            <div class="view-toggle" id="view-toggle">
+                                <button type="button" id="view-chart-btn" class="view-btn active">График</button>
+                                <button type="button" id="view-table-btn" class="view-btn">Таблица</button>
+                            </div>
                         </div>
                         <div class="chart-wrapper">
                             <canvas id="glucose-chart"></canvas>
+                        </div>
+                        <div class="table-wrapper hidden" id="comprehensive-table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Время</th>
+                                        <th>Глюкоза (ммоль/л)</th>
+                                        <th>Углеводы (г)</th>
+                                        <th>Инсулин (ЕД)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="comprehensive-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="stats-container content-box">
+                        <h3>Статистика периода</h3>
+                        <p id="stats-period-label" class="stats-period-label">Период: не выбран</p>
+                        <div class="stats-grid">
+                            <div class="stats-card"><span>Измерений</span><strong id="stat-readings-count">-</strong></div>
+                            <div class="stats-card"><span>Средняя глюкоза</span><strong id="stat-avg-glucose">-</strong></div>
+                            <div class="stats-card"><span>Минимум</span><strong id="stat-min-glucose">-</strong></div>
+                            <div class="stats-card"><span>Максимум</span><strong id="stat-max-glucose">-</strong></div>
+                            <div class="stats-card"><span>Станд. отклонение</span><strong id="stat-std-glucose">-</strong></div>
+                            <div class="stats-card"><span>В диапазоне 3.9-10.0</span><strong id="stat-tir">-</strong></div>
+                            <div class="stats-card"><span>Гипо (&lt;3.9)</span><strong id="stat-hypo-count">-</strong></div>
+                            <div class="stats-card"><span>Гипер (&gt;10.0)</span><strong id="stat-hyper-count">-</strong></div>
+                            <div class="stats-card"><span>Сумма углеводов, г</span><strong id="stat-total-carbs">-</strong></div>
+                            <div class="stats-card"><span>Сумма инсулина, ЕД</span><strong id="stat-total-insulin">-</strong></div>
                         </div>
                     </div>
 

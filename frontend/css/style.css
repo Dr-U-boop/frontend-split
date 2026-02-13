@@ -321,6 +321,10 @@ select:focus {
     background-color: var(--color-accent-green);
 }
 
+.status-warning {
+    background-color: #f1c40f;
+}
+
 .status-attention {
     background-color: var(--color-accent-red);
 }
@@ -480,6 +484,115 @@ select:focus {
 
 .date-range-picker button.secondary-btn {
     background-color: var(--color-text-secondary);
+}
+
+.quick-range-group {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.quick-range-btn {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    padding: 6px 10px;
+}
+
+.quick-range-btn.active {
+    background-color: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
+.view-toggle {
+    margin-left: auto;
+    display: inline-flex;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.view-toggle .view-btn {
+    border-radius: 0;
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border: none;
+}
+
+.view-toggle .view-btn.active {
+    background-color: var(--color-primary);
+    color: #fff;
+}
+
+.table-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    margin-top: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+    background-color: var(--color-surface);
+}
+
+.data-table th,
+.data-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.data-table th {
+    position: sticky;
+    top: 0;
+    background-color: var(--color-background);
+    z-index: 1;
+}
+
+.stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stats-period-label {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.stats-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    background-color: var(--color-background);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stats-card span {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.stats-card strong {
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
 }
 
 /* Специфика для Списка Рекомендаций */
