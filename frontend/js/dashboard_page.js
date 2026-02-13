@@ -235,10 +235,10 @@ async function updateComprehensiveChart() {
 function renderComprehensiveChart(apiData) {
     if (glucoseChart) glucoseChart.destroy();
     glucoseChart = new Chart(chartCanvas, {
-        type: 'bar',
+        type: 'line',
         data: {
             datasets: [
-                { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.2, pointRadius: 1 },
+                { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.5, pointRadius: 0, pointHoverRadius: 5 },
                 { type: 'line', label: 'Углеводы (г)', data: apiData.carbs, backgroundColor: 'rgba(255, 7, 7, 0.7)', yAxisID: 'yEvents' },
                 { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, backgroundColor: 'rgba(255, 5, 201, 1)', yAxisID: 'yEvents' }
             ]
