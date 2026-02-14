@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 
 let mainWindow = null;
 let pythonProcess = null;
+const USE_EXTERNAL_API = Boolean(process.env.API_BASE_URL);
 
 function startPythonBackend() {
     // Кросс-платформенный код запуска Python, который мы уже сделали
@@ -55,6 +56,12 @@ function createWindow() {
 
     // Загружаем наш локальный HTML файл
     mainWindow.loadFile(path.join(__dirname, './html/auth_page.html'));
+
+    if (USE_EXTERNAL_API) {
+        mainWindow.webContents.on('did-finish-load', () => {
+            mainWindow.webContents.send('backend-ready');
+        });
+    }
 }
 
 app.whenReady().then(() => {
@@ -92,7 +99,9 @@ app.whenReady().then(() => {
         win.loadFile(path.join(__dirname, './html/dashboard_page.html'));
     });
 
-    startPythonBackend();
+    if (!USE_EXTERNAL_API) {
+        startPythonBackend();
+    }
     createWindow();
 });
 

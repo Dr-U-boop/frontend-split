@@ -2,6 +2,7 @@
 
 const loginForm = document.getElementById('login-form');
 const messageDiv = document.getElementById('message');
+const API_BASE_URL = window.electronAPI.getApiBaseUrl();
 
 // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
 // Ждем сигнала от main.js, что бэкенд запущен
@@ -12,7 +13,7 @@ window.electronAPI.onBackendReady(async () => {
     if (savedToken) {
         messageDiv.textContent = 'Проверка сессии...';
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/auth/me', {
+            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
                 headers: { 'Authorization': `Bearer ${savedToken}` }
             });
 
@@ -42,7 +43,7 @@ loginForm.addEventListener('submit', async (event) => {
     const rememberMe = event.target['remember-me'].checked;
 
     try {
-        const response = await fetch('http://127.0.0.1:8000/api/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password }),

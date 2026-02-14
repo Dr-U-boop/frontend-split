@@ -6,6 +6,7 @@ document.getElementById('api-form').addEventListener('submit', async (event) => 
     const bodyText = event.target.body.value;
     const responseDiv = document.getElementById('response');
     
+    const API_BASE_URL = window.electronAPI.getApiBaseUrl();
     const requestOptions = {
         method: method,
         headers: {
@@ -25,7 +26,7 @@ document.getElementById('api-form').addEventListener('submit', async (event) => 
     }
 
     try {
-        const response = await fetch(`http://127.0.0.1:8000${endpoint}`, requestOptions);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, requestOptions);
         const data = await response.json();
         
         // Красиво форматируем JSON для вывода

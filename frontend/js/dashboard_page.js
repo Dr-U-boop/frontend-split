@@ -47,6 +47,7 @@ const statHypoCountEl = document.getElementById('stat-hypo-count');
 const statHyperCountEl = document.getElementById('stat-hyper-count');
 const statTotalCarbsEl = document.getElementById('stat-total-carbs');
 const statTotalInsulinEl = document.getElementById('stat-total-insulin');
+const API_BASE_URL = window.electronAPI.getApiBaseUrl();
 
 function readCssVar(name, fallback) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -259,7 +260,7 @@ async function apiFetch(endpoint, options = {}) {
             'Authorization': `Bearer ${currentToken}`
         }
     };
-    const response = await fetch(`http://127.0.0.1:8000${endpoint}`, { ...defaultOptions, ...options });
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...defaultOptions, ...options });
     if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || `Ошибка API: ${response.statusText}`);
