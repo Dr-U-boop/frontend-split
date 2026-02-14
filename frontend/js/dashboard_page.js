@@ -22,6 +22,10 @@ const updateChartBtn = document.getElementById('update-chart-btn');
 const resetChartBtn = document.getElementById('reset-chart-btn');
 const dashboardContainer = document.getElementById('dashboard-container');
 const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const zoomResetBtn = document.getElementById('zoom-reset-btn');
 const patientSearchInput = document.getElementById('patient-search');
 const resizer = document.getElementById('sidebar-resizer');
 const chartWrapperEl = document.querySelector('.chart-wrapper');
@@ -44,11 +48,116 @@ const statHyperCountEl = document.getElementById('stat-hyper-count');
 const statTotalCarbsEl = document.getElementById('stat-total-carbs');
 const statTotalInsulinEl = document.getElementById('stat-total-insulin');
 
+function readCssVar(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+}
+
+function getChartThemeConfig() {
+    return {
+        textPrimary: readCssVar('--color-text-primary', '#2f3b36'),
+        textSecondary: readCssVar('--color-text-secondary', '#6c7773'),
+        grid: readCssVar('--chart-grid-color', 'rgba(70, 89, 82, 0.14)')
+    };
+}
+
 // --- КОНСТАНТЫ ---
 const SIDEBAR_WIDTH_KEY = 'sidebarWidth';
 const MIN_SIDEBAR_WIDTH = 180;
 const MAX_SIDEBAR_WIDTH = 600;
 const DEFAULT_SIDEBAR_WIDTH = 280;
+const THEME_MODES = ['light', 'dark', 'auto'];
+const ZOOM_STORAGE_KEY = 'appZoomPercent';
+const ZOOM_STEP = 10;
+const MIN_ZOOM = 50;
+const MAX_ZOOM = 200;
+const THEME_LABELS = {
+    light: 'Светлая',
+    dark: 'Тёмная',
+    auto: 'Авто'
+};
+
+function getCurrentThemeMode() {
+    if (window.appTheme && typeof window.appTheme.getMode === 'function') {
+        return window.appTheme.getMode();
+    }
+    return 'auto';
+}
+
+function updateThemeToggleLabel() {
+    if (!themeToggleBtn) return;
+    const mode = getCurrentThemeMode();
+    themeToggleBtn.textContent = `Тема: ${THEME_LABELS[mode] || THEME_LABELS.auto}`;
+}
+
+function cycleThemeMode() {
+    if (!window.appTheme || typeof window.appTheme.setMode !== 'function') return;
+    const currentMode = getCurrentThemeMode();
+    const currentIndex = THEME_MODES.indexOf(currentMode);
+    const nextMode = THEME_MODES[(currentIndex + 1 + THEME_MODES.length) % THEME_MODES.length];
+    window.appTheme.setMode(nextMode);
+    updateThemeToggleLabel();
+}
+
+function getSavedZoomPercent() {
+    const raw = localStorage.getItem(ZOOM_STORAGE_KEY);
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    if (parsed < MIN_ZOOM || parsed > MAX_ZOOM) return null;
+    return parsed;
+}
+
+function getCurrentZoomPercent() {
+    return getSavedZoomPercent() ?? 100;
+}
+
+async function applyZoomPercent(percent, persist = true) {
+    if (!window.electronAPI || typeof window.electronAPI.setZoomFactor !== 'function') return;
+
+    if (percent === null) {
+        await window.electronAPI.setZoomFactor(1);
+        if (persist) localStorage.removeItem(ZOOM_STORAGE_KEY);
+    } else {
+        const boundedPercent = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, percent));
+        await window.electronAPI.setZoomFactor(boundedPercent / 100);
+        if (persist) localStorage.setItem(ZOOM_STORAGE_KEY, String(boundedPercent));
+    }
+
+    updateZoomResetLabel();
+    if (glucoseChart) {
+        setTimeout(() => glucoseChart.resize(), 0);
+    }
+}
+
+function updateZoomResetLabel() {
+    if (!zoomResetBtn) return;
+    const savedZoom = getSavedZoomPercent();
+    zoomResetBtn.textContent = savedZoom === null ? 'Авто' : `${savedZoom}%`;
+}
+
+async function increaseZoom() {
+    const nextZoom = getCurrentZoomPercent() + ZOOM_STEP;
+    await applyZoomPercent(nextZoom);
+}
+
+async function decreaseZoom() {
+    const nextZoom = getCurrentZoomPercent() - ZOOM_STEP;
+    await applyZoomPercent(nextZoom);
+}
+
+async function resetZoomToAuto() {
+    await applyZoomPercent(null);
+}
+
+function initZoomControls() {
+    if (!zoomOutBtn || !zoomInBtn || !zoomResetBtn) return;
+
+    zoomOutBtn.addEventListener('click', () => { void decreaseZoom(); });
+    zoomInBtn.addEventListener('click', () => { void increaseZoom(); });
+    zoomResetBtn.addEventListener('click', () => { void resetZoomToAuto(); });
+
+    void applyZoomPercent(getSavedZoomPercent(), false);
+}
 
 // --- Инициализация ---
 window.electronAPI.handleToken((token) => {
@@ -500,23 +609,67 @@ function renderComprehensiveView() {
 }
 
 function renderComprehensiveChart(apiData) {
+    const theme = getChartThemeConfig();
+
     if (glucoseChart) glucoseChart.destroy();
     glucoseChart = new Chart(chartCanvas, {
         type: 'line',
         data: {
             datasets: [
                 { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.5, pointRadius: 2, pointHoverRadius: 5 },
-                { type: 'line', label: 'Углеводы (г)', data: apiData.carbs, backgroundColor: 'rgba(255, 7, 7, 0.7)', yAxisID: 'yEvents', tension: 0.5 },
-                { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, backgroundColor: 'rgba(255, 5, 201, 1)', yAxisID: 'yEvents', tension: 0.5 }
+                { type: 'line', label: 'Углеводы (г)', data: apiData.carbs, borderColor: 'rgba(255, 7, 7, 0.72)', yAxisID: 'yEvents', tension: 0.5 },
+                { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, borderColor: 'rgba(255, 5, 201, 0.72)', yAxisID: 'yEvents', tension: 0.5 }
             ]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { decimation: { enabled: true, algorithm: 'lttb', samples: 200, threshold: 500 } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                decimation: { enabled: true, algorithm: 'lttb', samples: 200, threshold: 500 },
+                legend: {
+                    labels: {
+                        color: theme.textPrimary
+                    }
+                }
+            },
             scales: {
-                x: { type: 'time', time: { tooltipFormat: 'dd.MM.yyyy HH:mm' } },
-                yGlucose: { position: 'left', title: { display: true, text: 'Глюкоза (ммоль/л)' } },
-                yEvents: { position: 'right', title: { display: true, text: 'Углеводы (г) / Инсулин (ЕД)' }, grid: { drawOnChartArea: false }, beginAtZero: true }
+                x: {
+                    type: 'time',
+                    time: {
+                        tooltipFormat: 'dd.MM.yyyy HH:mm',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'dd.MM HH:mm'
+                        }
+                    },
+                    ticks: {
+                        color: theme.textSecondary,
+                        callback: (value) => {
+                            const date = new Date(value);
+                            if (Number.isNaN(date.getTime())) return value;
+                            return date.toLocaleTimeString('ru-RU', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                            });
+                        }
+                    },
+                    grid: { color: theme.grid }
+                },
+                yGlucose: {
+                    position: 'left',
+                    title: { display: true, text: 'Глюкоза (ммоль/л)', color: theme.textPrimary },
+                    ticks: { color: theme.textSecondary },
+                    grid: { color: theme.grid }
+                },
+                yEvents: {
+                    position: 'right',
+                    title: { display: true, text: 'Углеводы (г) / Инсулин (ЕД)', color: theme.textPrimary },
+                    ticks: { color: theme.textSecondary },
+                    grid: { drawOnChartArea: false, color: theme.grid },
+                    beginAtZero: true
+                }
             }
         }
     });
@@ -535,6 +688,12 @@ function renderRecommendations(data) {
 }
 
 // --- Обработчики событий ---
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', cycleThemeMode);
+    updateThemeToggleLabel();
+}
+initZoomControls();
+
 updateChartBtn.addEventListener('click', updateComprehensiveChart);
 resetChartBtn.addEventListener('click', () => {
     if (currentPatientId) displayPatientDetails(currentPatientId);
@@ -693,3 +852,10 @@ tabButtons.forEach(btn => {
 
 // Стартовое состояние
 switchTab('monitoring');
+
+
+window.addEventListener('app-theme-changed', () => {
+    updateThemeToggleLabel();
+    if (!comprehensiveData) return;
+    renderComprehensiveChart(comprehensiveData);
+});

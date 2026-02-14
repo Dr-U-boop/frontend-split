@@ -43,6 +43,27 @@
     --spacing-md: 16px;
     --spacing-lg: 24px;
     --spacing-xl: 32px;
+
+    --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --overlay-bg: rgba(17, 24, 39, 0.6);
+    --chart-grid-color: rgba(70, 89, 82, 0.14);
+}
+
+:root[data-theme="dark"] {
+    --color-background: #1a1f1d;
+    --color-surface: #242b28;
+    --color-text-primary: #e6ece9;
+    --color-text-secondary: #a6b4ae;
+    --color-primary: #8eb8a6;
+    --color-primary-hover: #7ca693;
+    --color-accent-pink: #efaa9f;
+    --color-accent-red: #ff7575;
+    --color-accent-green: #4cd681;
+    --color-border: #3a4541;
+
+    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.38);
+    --overlay-bg: rgba(0, 0, 0, 0.62);
+    --chart-grid-color: rgba(230, 236, 233, 0.16);
 }
 
 /* ============================================= */
@@ -120,9 +141,56 @@ select:focus {
     background-color: var(--color-surface);
     padding: 40px;
     border-radius: var(--radius-md);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-elevated);
     width: 320px;
     text-align: center;
+}
+
+.theme-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.theme-modal {
+    width: min(460px, 100%);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-elevated);
+    padding: 22px;
+}
+
+.theme-modal h3 {
+    margin-bottom: 8px;
+}
+
+.theme-modal p {
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: var(--color-text-secondary);
+}
+
+.theme-modal-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.theme-modal-buttons button {
+    background-color: var(--color-primary);
+    color: #fff;
+    border: 1px solid transparent;
+}
+
+.theme-modal-buttons button:hover {
+    background-color: var(--color-primary-hover);
 }
 
 .login-container h2 {
@@ -214,6 +282,59 @@ select:focus {
     display: flex;
     align-items: center;
     gap: 15px;
+}
+
+.doctor-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.theme-toggle-btn {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    padding: 8px 12px;
+}
+
+.theme-toggle-btn:hover {
+    background-color: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
+.zoom-controls {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background-color: var(--color-background);
+}
+
+.zoom-btn,
+.zoom-reset-btn {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text-primary);
+    min-width: 34px;
+    padding: 8px 10px;
+}
+
+.zoom-reset-btn {
+    min-width: 64px;
+    border-left: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
+    font-variant-numeric: tabular-nums;
+}
+
+.zoom-btn:hover,
+.zoom-reset-btn:hover {
+    background-color: var(--color-primary);
+    color: #fff;
 }
 
 .icon-btn {
@@ -748,14 +869,14 @@ select:focus {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     overflow: hidden;
-    background-color: white;
+    background-color: var(--color-surface);
 }
 
 .result-card .input-group span {
     padding: 6px 10px;
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
-    background-color: #f7f7f7;
+    background-color: var(--color-background);
     border-right: 1px solid var(--color-border);
     height: 100%;
     box-sizing: border-box;
@@ -778,4 +899,10 @@ select:focus {
     justify-content: center;
     align-items: center;
     gap: 10px;
+}
+
+@media (max-width: 640px) {
+    .theme-modal-buttons {
+        grid-template-columns: 1fr;
+    }
 }

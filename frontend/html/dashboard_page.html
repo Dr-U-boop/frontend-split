@@ -17,7 +17,12 @@
                 </button>
             </div>
             <div class="doctor-info">
-                <span id="doctor-name"></span>
+                <span id="doctor-name"></span>                <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">Тема: Авто</button>
+                <div class="zoom-controls" aria-label="Zoom controls">
+                    <button id="zoom-out-btn" class="zoom-btn" type="button" title="Уменьшить масштаб">-</button>
+                    <button id="zoom-reset-btn" class="zoom-reset-btn" type="button" title="Сбросить масштаб">Авто</button>
+                    <button id="zoom-in-btn" class="zoom-btn" type="button" title="Увеличить масштаб">+</button>
+                </div>
                 <button id="logout-btn">Выход</button>
             </div>
         </header>
@@ -46,6 +51,7 @@
                     <div class="tabs">
                         <button class="tab-btn" data-tab="monitoring">Мониторинг</button>
                         <button class="tab-btn" data-tab="patient-card">Карточка пациента</button>
+                        <button class="tab-btn" data-tab="patient-diary">Дневник пациента</button>
                         <button class="tab-btn" data-tab="patient-sim">Симулятор</button>
                     </div>
                 </div>
@@ -171,6 +177,7 @@
     <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
     <script src="../node_modules/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <!--<script src="chartjs-plugin-decimation.min.js"></script>-->
+    <script src="../js/theme_manager.js"></script>
     <script src="../js/dashboard_page.js"></script>
 </body>
 

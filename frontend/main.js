@@ -58,7 +58,23 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    
+    ipcMain.handle('set-zoom-factor', (event, factor) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        if (!win) return false;
+
+        const parsed = Number(factor);
+        const safeFactor = Number.isFinite(parsed) ? parsed : 1;
+        const boundedFactor = Math.min(2, Math.max(0.5, safeFactor));
+        win.webContents.setZoomFactor(boundedFactor);
+        return true;
+    });
+
+    ipcMain.handle('get-zoom-factor', (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        if (!win) return 1;
+        return win.webContents.getZoomFactor();
+    });
+
     /// Слушаем событие 'login-success' и принимаем токен
     ipcMain.on('login-success', (event, token) => {
         console.log("Токен получен в главном процессе!");
