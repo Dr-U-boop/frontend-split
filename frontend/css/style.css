@@ -671,6 +671,19 @@ select:focus {
     white-space: nowrap;
 }
 
+.diary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.diary-text-cell {
+    white-space: pre-wrap;
+    min-width: 320px;
+}
+
 .data-table th {
     position: sticky;
     top: 0;

@@ -47,6 +47,8 @@ const statHypoCountEl = document.getElementById('stat-hypo-count');
 const statHyperCountEl = document.getElementById('stat-hyper-count');
 const statTotalCarbsEl = document.getElementById('stat-total-carbs');
 const statTotalInsulinEl = document.getElementById('stat-total-insulin');
+const patientDiaryBodyEl = document.getElementById('patient-diary-body');
+const refreshDiaryBtn = document.getElementById('refresh-diary-btn');
 const API_BASE_URL = window.electronAPI.getApiBaseUrl();
 
 function readCssVar(name, fallback) {
@@ -390,6 +392,7 @@ async function displayPatientDetails(patientId) {
         comprehensiveData = chartData;
         renderComprehensiveView();
         renderRecommendations(recommendationsData);
+        await loadPatientDiary(currentPatientId);
     } catch (error) { console.error("Не удалось загрузить данные пациента:", error); }
 }
 
@@ -688,6 +691,52 @@ function renderRecommendations(data) {
     }
 }
 
+function setDiaryMessage(text) {
+    if (!patientDiaryBodyEl) return;
+    patientDiaryBodyEl.innerHTML = `<tr><td colspan="2">${text}</td></tr>`;
+}
+
+function renderPatientDiary(entries) {
+    if (!patientDiaryBodyEl) return;
+    patientDiaryBodyEl.innerHTML = '';
+
+    if (!entries || entries.length === 0) {
+        setDiaryMessage('Нет записей дневника самоконтроля');
+        return;
+    }
+
+    entries.forEach((entry) => {
+        const row = document.createElement('tr');
+        const timeCell = document.createElement('td');
+        const textCell = document.createElement('td');
+
+        timeCell.textContent = formatTimestampForTable(entry.timestamp);
+        textCell.textContent = entry.text || '-';
+        textCell.className = 'diary-text-cell';
+
+        row.appendChild(timeCell);
+        row.appendChild(textCell);
+        patientDiaryBodyEl.appendChild(row);
+    });
+}
+
+async function loadPatientDiary(patientId) {
+    if (!patientDiaryBodyEl) return;
+    if (!patientId) {
+        setDiaryMessage('Выберите пациента для просмотра дневника.');
+        return;
+    }
+
+    setDiaryMessage('Загрузка дневника...');
+    try {
+        const entries = await apiFetch(`/api/patients/${patientId}/diary`);
+        renderPatientDiary(entries);
+    } catch (error) {
+        console.error('Не удалось загрузить дневник пациента:', error);
+        setDiaryMessage(`Ошибка загрузки: ${error.message}`);
+    }
+}
+
 // --- Обработчики событий ---
 if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', cycleThemeMode);
@@ -722,6 +771,13 @@ lastThreeMonthsRangeBtn.addEventListener('click', () => {
 [startDateInput, startTimeInput, endDateInput, endTimeInput].forEach((input) => {
     input.addEventListener('input', () => setQuickRangeActiveButton(null));
 });
+if (refreshDiaryBtn) {
+    refreshDiaryBtn.addEventListener('click', () => {
+        if (currentPatientId) {
+            loadPatientDiary(currentPatientId);
+        }
+    });
+}
 
 const recommendTextEl = document.getElementById('recommendation-text');
 const interpretBtn = document.getElementById('interpret-btn');
@@ -841,6 +897,9 @@ function switchTab(tabId) {
     if (tabId === 'patient-sim' && currentPatientId) {
         loadPatientParameters(currentPatientId);
         loadSimulatorScenarios();
+    }
+    if (tabId === 'patient-diary' && currentPatientId) {
+        loadPatientDiary(currentPatientId);
     }
 }
 
