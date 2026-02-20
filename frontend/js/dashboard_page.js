@@ -617,11 +617,10 @@ function renderComprehensiveChart(apiData) {
 
     if (glucoseChart) glucoseChart.destroy();
     glucoseChart = new Chart(chartCanvas, {
-        type: 'line',
         data: {
             datasets: [
                 { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.5, pointRadius: 2, pointHoverRadius: 5 },
-                { type: 'line', label: 'Углеводы (г)', data: apiData.carbs, borderColor: 'rgba(255, 7, 7, 0.72)', yAxisID: 'yEvents', tension: 0.5 },
+                { type: 'bar', label: 'Углеводы (г)', data: apiData.carbs, backgroundColor: 'rgba(255, 7, 7, 0.5)', borderColor: 'rgb(255, 7, 7)', borderWidth: 2, borderRadius: 5, borderSkipped: false, yAxisID: 'yEvents' },
                 { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, borderColor: 'rgba(255, 5, 201, 0.72)', yAxisID: 'yEvents', tension: 0.5 }
             ]
         },
