@@ -2,8 +2,10 @@ let currentToken = null;
 let currentPatientId = null;
 let patients = [];
 let glucoseChart = null;
+let simChart = null;
 let comprehensiveData = null;
 let currentMonitoringView = 'chart';
+let simulatorScenarios = [];
 const patientStatusById = new Map();
 const STATUS_PRIORITY = ['status-attention', 'status-warning', 'status-ok'];
 
@@ -49,6 +51,17 @@ const statTotalCarbsEl = document.getElementById('stat-total-carbs');
 const statTotalInsulinEl = document.getElementById('stat-total-insulin');
 const patientDiaryBodyEl = document.getElementById('patient-diary-body');
 const refreshDiaryBtn = document.getElementById('refresh-diary-btn');
+const simParamsCodeEl = document.getElementById('sim-params-code');
+const simScenarioCodeEl = document.getElementById('sim-scenario-code');
+const simSaveParamsBtn = document.getElementById('sim-save-params-btn');
+const simScenarioSelectEl = document.getElementById('sim-scenario-select');
+const simNewScenarioBtn = document.getElementById('sim-new-scenario-btn');
+const simSaveScenarioBtn = document.getElementById('sim-save-scenario-btn');
+const simRunBtn = document.getElementById('sim-run-btn');
+const simRunSummaryEl = document.getElementById('sim-run-summary');
+const simChartCanvas = document.getElementById('sim-glucose-chart');
+const simModelTypeEl = document.getElementById('sim-model-type');
+const simCgmSeedEl = document.getElementById('sim-cgm-seed');
 const API_BASE_URL = window.electronAPI.getApiBaseUrl();
 
 function readCssVar(name, fallback) {
@@ -853,30 +866,164 @@ function renderConfirmationForm(data) {
 // ... (В конце файла) ...
 
 // --- ЛОГИКА СИМУЛЯТОРА ---
-async function loadPatientParameters(patientId) {
-    const codeEl = document.getElementById('sim-params-code');
-    codeEl.textContent = 'Загрузка параметров...';
+function getSelectedScenario() {
+    const selectedIdRaw = simScenarioSelectEl.value;
+    if (!selectedIdRaw) return null;
+    if (selectedIdRaw === 'new') return null;
+    const selectedId = Number(selectedIdRaw);
+    return simulatorScenarios.find((s) => Number(s.scenario_id) === selectedId) || null;
+}
+
+function renderScenarioSelect() {
+    simScenarioSelectEl.innerHTML = '';
+    simulatorScenarios.forEach((scenario, index) => {
+        const option = document.createElement('option');
+        option.value = String(scenario.scenario_id);
+        option.textContent = `Сценарий #${scenario.scenario_id ?? index + 1}`;
+        simScenarioSelectEl.appendChild(option);
+    });
+}
+
+function drawSimulationChart(time, glucose) {
+    if (!simChartCanvas) return;
+    const labels = time.map((t) => Number(t));
+    const data = glucose.map((v) => Number(v));
+    if (simChart) simChart.destroy();
+
+    simChart = new Chart(simChartCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Глюкоза (ммоль/л)',
+                    data,
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    borderColor: '#2e8b57'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { title: { display: true, text: 'Время, мин' } },
+                y: { title: { display: true, text: 'Глюкоза' } }
+            }
+        }
+    });
+}
+
+async function loadSimulatorConfig(patientId) {
+    simParamsCodeEl.value = 'Загрузка параметров...';
+    simScenarioCodeEl.value = 'Загрузка сценариев...';
     try {
-        const data = await apiFetch(`/api/patients/${patientId}/parameters`);
-        codeEl.textContent = JSON.stringify(data, null, 4); // Pretty print
+        const payload = await apiFetch(`/api/simulator/patients/${patientId}/config`);
+        simParamsCodeEl.value = JSON.stringify(payload.parameters, null, 2);
+
+        simulatorScenarios = payload.scenarios || [];
+        if (simulatorScenarios.length === 0) {
+            simulatorScenarios = [{ scenario_id: null, scenario_data: {} }];
+        }
+        renderScenarioSelect();
+        simScenarioSelectEl.value = String(simulatorScenarios[0].scenario_id ?? '');
+        simScenarioCodeEl.value = JSON.stringify(simulatorScenarios[0].scenario_data, null, 2);
     } catch (error) {
-        console.error("Failed to load parameters:", error);
-        codeEl.textContent = `Ошибка загрузки: ${error.message}`;
+        console.error('Failed to load simulator config:', error);
+        simParamsCodeEl.value = `Ошибка загрузки: ${error.message}`;
+        simScenarioCodeEl.value = `Ошибка загрузки: ${error.message}`;
     }
 }
 
-async function loadSimulatorScenarios() {
+simScenarioSelectEl?.addEventListener('change', () => {
+    const selected = getSelectedScenario();
+    if (!selected) return;
+    simScenarioCodeEl.value = JSON.stringify(selected.scenario_data, null, 2);
+});
+
+simNewScenarioBtn?.addEventListener('click', () => {
+    simScenarioCodeEl.value = JSON.stringify(
+        {
+            M: 90,
+            tm: 60,
+            Tm: 20,
+            t0: 0,
+            t1: 720,
+            ti_1: 30,
+            ti_2: 60,
+            Ti_1: 10,
+            Ti_2: 10,
+            Dbol_1: 2.6,
+            Dbol_2: 4.0,
+            Vbas: 1.22
+        },
+        null,
+        2
+    );
+    simScenarioSelectEl.value = '';
+});
+
+simSaveParamsBtn?.addEventListener('click', async () => {
     if (!currentPatientId) return;
-    const codeEl = document.getElementById('sim-scenario-code');
-    codeEl.textContent = 'Загрузка сценариев...';
     try {
-        const data = await apiFetch(`/api/patients/${currentPatientId}/scenarios`);
-        codeEl.textContent = JSON.stringify(data, null, 4);
+        const parsed = JSON.parse(simParamsCodeEl.value);
+        await apiFetch(`/api/simulator/patients/${currentPatientId}/parameters`, {
+            method: 'PUT',
+            body: JSON.stringify({ parameters: parsed })
+        });
+        alert('Параметры симуляции сохранены');
     } catch (error) {
-        console.error("Failed to load scenarios:", error);
-        codeEl.textContent = `Ошибка загрузки: ${error.message}`;
+        alert(`Не удалось сохранить параметры: ${error.message}`);
     }
-}
+});
+
+simSaveScenarioBtn?.addEventListener('click', async () => {
+    if (!currentPatientId) return;
+    try {
+        const parsed = JSON.parse(simScenarioCodeEl.value);
+        const selected = getSelectedScenario();
+        if (selected && selected.scenario_id != null) {
+            await apiFetch(`/api/simulator/patients/${currentPatientId}/scenarios/${selected.scenario_id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ scenario_data: parsed })
+            });
+        } else {
+            await apiFetch(`/api/simulator/patients/${currentPatientId}/scenarios`, {
+                method: 'POST',
+                body: JSON.stringify({ scenario_data: parsed })
+            });
+        }
+        await loadSimulatorConfig(currentPatientId);
+        alert('Сценарий симуляции сохранен');
+    } catch (error) {
+        alert(`Не удалось сохранить сценарий: ${error.message}`);
+    }
+});
+
+simRunBtn?.addEventListener('click', async () => {
+    if (!currentPatientId) return;
+    try {
+        const parameters = JSON.parse(simParamsCodeEl.value);
+        const scenario_data = JSON.parse(simScenarioCodeEl.value);
+        const model_type = simModelTypeEl?.value || 'sibr';
+        const cgm_noise_seed = simCgmSeedEl?.value !== '' ? Number(simCgmSeedEl.value) : null;
+        const result = await apiFetch(`/api/simulator/patients/${currentPatientId}/run`, {
+            method: 'POST',
+            body: JSON.stringify({ parameters, scenario_data, model_type, cgm_noise_seed })
+        });
+        drawSimulationChart(result.time || [], result.glucose_mmol || result.glucose || []);
+        if (result.metrics) {
+            simRunSummaryEl.textContent =
+                `avg=${result.metrics.average.toFixed(2)} mg/dl, min=${result.metrics.min.toFixed(2)}, ` +
+                `max=${result.metrics.max.toFixed(2)}, TIR=${(result.metrics.fraction_within_target * 100).toFixed(1)}%`;
+        } else {
+            simRunSummaryEl.textContent = 'Симуляция выполнена';
+        }
+    } catch (error) {
+        alert(`Ошибка симуляции: ${error.message}`);
+    }
+});
 
 // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
 const tabButtons = document.querySelectorAll('.tab-btn');
@@ -894,8 +1041,7 @@ function switchTab(tabId) {
     }
 
     if (tabId === 'patient-sim' && currentPatientId) {
-        loadPatientParameters(currentPatientId);
-        loadSimulatorScenarios();
+        loadSimulatorConfig(currentPatientId);
     }
     if (tabId === 'patient-diary' && currentPatientId) {
         loadPatientDiary(currentPatientId);

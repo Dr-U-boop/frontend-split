@@ -182,15 +182,37 @@
 
                 <div id="tab-patient-sim" class="tab-content">
                     <div class="content-box">
-                        <h3>Параметры пациента:</h3>
-                        <div class="json-viewer"
-                            style="background: #f4f4f4; padding: 15px; border-radius: 4px; overflow: auto; max-height: 500px;">
-                            <pre><code id="sim-params-code">Загрузка...</code></pre>
+                        <h3>Параметры пациента</h3>
+                        <div class="json-viewer">
+                            <textarea id="sim-params-code" rows="14">Загрузка...</textarea>
                         </div>
-                        <h3>Сценарий симулятора:</h3>
-                        <div class="json-viewer"
-                            style="background: #f4f4f4; padding: 15px; border-radius: 4px; overflow: auto; max-height: 500px;">
-                            <pre><code id="sim-scenario-code">Загрузка...</code></pre>
+                        <div class="sim-actions-row">
+                            <button id="sim-save-params-btn" class="secondary-btn">Сохранить параметры</button>
+                        </div>
+
+                        <h3>Сценарий симулятора</h3>
+                        <div class="sim-actions-row">
+                            <label for="sim-scenario-select">Сценарий:</label>
+                            <select id="sim-scenario-select"></select>
+                            <button id="sim-new-scenario-btn" class="secondary-btn">Новый сценарий</button>
+                        </div>
+                        <div class="json-viewer">
+                            <textarea id="sim-scenario-code" rows="12">Загрузка...</textarea>
+                        </div>
+                        <div class="sim-actions-row">
+                            <button id="sim-save-scenario-btn" class="secondary-btn">Сохранить сценарий</button>
+                            <label for="sim-model-type">Модель:</label>
+                            <select id="sim-model-type">
+                                <option value="sibr">SIBR</option>
+                                <option value="dm">DM</option>
+                            </select>
+                            <label for="sim-cgm-seed">CGM seed:</label>
+                            <input id="sim-cgm-seed" type="number" value="10" style="width: 90px;">
+                            <button id="sim-run-btn" class="primary-btn">Запустить симуляцию</button>
+                        </div>
+                        <p id="sim-run-summary">Симуляция не запускалась</p>
+                        <div class="chart-wrapper">
+                            <canvas id="sim-glucose-chart"></canvas>
                         </div>
                     </div>
                 </div>
