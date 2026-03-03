@@ -790,9 +790,32 @@ select:focus {
     min-width: 140px;
 }
 
-#sim-run-summary {
+.sim-stats-container {
     margin: 8px 0 16px;
-    color: var(--color-text-secondary);
+}
+
+.sim-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.sim-stats-card {
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+}
+
+.sim-stats-card span {
+    font-size: var(--font-size-sm);
+}
+
+.sim-stats-card strong {
+    font-size: clamp(20px, 3vw, 24px);
+    line-height: 1.1;
+}
+
+.sim-chart-wrapper {
+    height: min(62vh, 540px);
+    min-height: 340px;
 }
 
 .patient-info-full li {
@@ -952,5 +975,13 @@ select:focus {
 @media (max-width: 640px) {
     .theme-modal-buttons {
         grid-template-columns: 1fr;
+    }
+
+    .sim-stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .sim-chart-wrapper {
+        min-height: 280px;
     }
 }

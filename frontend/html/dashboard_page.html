@@ -210,8 +210,17 @@
                             <input id="sim-cgm-seed" type="number" value="10" style="width: 90px;">
                             <button id="sim-run-btn" class="primary-btn">Запустить симуляцию</button>
                         </div>
-                        <p id="sim-run-summary">Симуляция не запускалась</p>
-                        <div class="chart-wrapper">
+                        <div id="sim-run-summary" class="stats-container sim-stats-container">
+                            <h3>Результаты симуляции</h3>
+                            <p id="sim-stats-period-label" class="stats-period-label">Симуляция не запускалась</p>
+                            <div class="stats-grid sim-stats-grid">
+                                <div class="stats-card sim-stats-card"><span>Средняя глюкоза</span><strong id="sim-stat-avg">-</strong></div>
+                                <div class="stats-card sim-stats-card"><span>Минимум</span><strong id="sim-stat-min">-</strong></div>
+                                <div class="stats-card sim-stats-card"><span>Максимум</span><strong id="sim-stat-max">-</strong></div>
+                                <div class="stats-card sim-stats-card"><span>В диапазоне 3.9-10.0</span><strong id="sim-stat-tir">-</strong></div>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper sim-chart-wrapper">
                             <canvas id="sim-glucose-chart"></canvas>
                         </div>
                     </div>

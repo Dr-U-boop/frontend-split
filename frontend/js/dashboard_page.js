@@ -58,7 +58,11 @@ const simScenarioSelectEl = document.getElementById('sim-scenario-select');
 const simNewScenarioBtn = document.getElementById('sim-new-scenario-btn');
 const simSaveScenarioBtn = document.getElementById('sim-save-scenario-btn');
 const simRunBtn = document.getElementById('sim-run-btn');
-const simRunSummaryEl = document.getElementById('sim-run-summary');
+const simStatsPeriodLabelEl = document.getElementById('sim-stats-period-label');
+const simStatAvgEl = document.getElementById('sim-stat-avg');
+const simStatMinEl = document.getElementById('sim-stat-min');
+const simStatMaxEl = document.getElementById('sim-stat-max');
+const simStatTirEl = document.getElementById('sim-stat-tir');
 const simChartCanvas = document.getElementById('sim-glucose-chart');
 const simModelTypeEl = document.getElementById('sim-model-type');
 const simCgmSeedEl = document.getElementById('sim-cgm-seed');
@@ -898,8 +902,8 @@ function drawSimulationChart(time, glucose) {
                 {
                     label: 'Глюкоза (ммоль/л)',
                     data,
-                    borderWidth: 1.5,
-                    pointRadius: 0,
+                    borderWidth: 2,
+                    pointRadius: 1,
                     borderColor: '#2e8b57'
                 }
             ]
@@ -913,6 +917,81 @@ function drawSimulationChart(time, glucose) {
             }
         }
     });
+}
+
+function resetSimulationStatistics() {
+    updateStatValue(simStatsPeriodLabelEl, 'Симуляция не запускалась');
+    updateStatValue(simStatAvgEl, '-');
+    updateStatValue(simStatMinEl, '-');
+    updateStatValue(simStatMaxEl, '-');
+    updateStatValue(simStatTirEl, '-');
+}
+
+function normalizeSimulationGlucose(values) {
+    if (!Array.isArray(values)) return [];
+    const numeric = values.map(Number).filter(Number.isFinite);
+    if (numeric.length === 0) return [];
+
+    // Backward compatibility: old API may return glucose in mg/dL.
+    const looksLikeMgDl = numeric.some((v) => v > 40);
+    return looksLikeMgDl ? numeric.map((v) => v / 18) : numeric;
+}
+
+function normalizeSimulationMetrics(metrics) {
+    if (!metrics || typeof metrics !== 'object') return metrics;
+    const normalized = { ...metrics };
+    const average = Number(normalized.average);
+    const looksLikeMgDl = Number.isFinite(average) && average > 40;
+    if (!looksLikeMgDl) return normalized;
+
+    ['average', 'average_before_meals', 'average_after_meals', 'min', 'max', 'min_with_30min_meal_delay', 'integral_above_180']
+        .forEach((key) => {
+            const value = Number(normalized[key]);
+            if (Number.isFinite(value)) normalized[key] = value / 18;
+        });
+
+    return normalized;
+}
+
+function computeTirFromGlucoseMmol(glucoseMmol) {
+    if (!Array.isArray(glucoseMmol)) return null;
+    const values = glucoseMmol.map(Number).filter(Number.isFinite);
+    if (values.length === 0) return null;
+    return values.filter((v) => v >= 3.9 && v <= 10.0).length / values.length;
+}
+
+function renderSimulationStatistics(metrics, glucoseMmol = []) {
+    const safeMetrics = normalizeSimulationMetrics(metrics);
+    const tirFromSeries = computeTirFromGlucoseMmol(glucoseMmol);
+    updateStatValue(simStatsPeriodLabelEl, 'Симуляция выполнена');
+    if (!safeMetrics) {
+        updateStatValue(simStatAvgEl, '-');
+        updateStatValue(simStatMinEl, '-');
+        updateStatValue(simStatMaxEl, '-');
+        updateStatValue(simStatTirEl, '-');
+        return;
+    }
+
+    updateStatValue(
+        simStatAvgEl,
+        Number.isFinite(Number(safeMetrics.average)) ? `${roundTo(Number(safeMetrics.average), 2)} ммоль/л` : '-'
+    );
+    updateStatValue(
+        simStatMinEl,
+        Number.isFinite(Number(safeMetrics.min)) ? `${roundTo(Number(safeMetrics.min), 2)} ммоль/л` : '-'
+    );
+    updateStatValue(
+        simStatMaxEl,
+        Number.isFinite(Number(safeMetrics.max)) ? `${roundTo(Number(safeMetrics.max), 2)} ммоль/л` : '-'
+    );
+    updateStatValue(
+        simStatTirEl,
+        Number.isFinite(Number(tirFromSeries))
+            ? `${roundTo(Number(tirFromSeries) * 100, 1)}%`
+            : Number.isFinite(Number(safeMetrics.fraction_within_target))
+            ? `${roundTo(Number(safeMetrics.fraction_within_target) * 100, 1)}%`
+            : '-'
+    );
 }
 
 async function loadSimulatorConfig(patientId) {
@@ -1012,14 +1091,11 @@ simRunBtn?.addEventListener('click', async () => {
             method: 'POST',
             body: JSON.stringify({ parameters, scenario_data, model_type, cgm_noise_seed })
         });
-        drawSimulationChart(result.time || [], result.glucose_mmol || result.glucose || []);
-        if (result.metrics) {
-            simRunSummaryEl.textContent =
-                `avg=${result.metrics.average.toFixed(2)} mg/dl, min=${result.metrics.min.toFixed(2)}, ` +
-                `max=${result.metrics.max.toFixed(2)}, TIR=${(result.metrics.fraction_within_target * 100).toFixed(1)}%`;
-        } else {
-            simRunSummaryEl.textContent = 'Симуляция выполнена';
-        }
+        const glucoseForChart = Array.isArray(result.glucose_mmol) && result.glucose_mmol.length > 0
+            ? result.glucose_mmol
+            : normalizeSimulationGlucose(result.glucose || []);
+        drawSimulationChart(result.time || [], glucoseForChart);
+        renderSimulationStatistics(result.metrics, glucoseForChart);
     } catch (error) {
         alert(`Ошибка симуляции: ${error.message}`);
     }
@@ -1042,6 +1118,9 @@ function switchTab(tabId) {
 
     if (tabId === 'patient-sim' && currentPatientId) {
         loadSimulatorConfig(currentPatientId);
+        if (simChart) {
+            setTimeout(() => simChart.resize(), 50);
+        }
     }
     if (tabId === 'patient-diary' && currentPatientId) {
         loadPatientDiary(currentPatientId);
@@ -1057,6 +1136,7 @@ tabButtons.forEach(btn => {
 
 // Стартовое состояние
 switchTab('monitoring');
+resetSimulationStatistics();
 
 
 window.addEventListener('app-theme-changed', () => {
