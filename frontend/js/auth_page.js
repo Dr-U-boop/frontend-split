@@ -3,12 +3,21 @@
 const loginForm = document.getElementById('login-form');
 const messageDiv = document.getElementById('message');
 const API_BASE_URL = window.electronAPI.getApiBaseUrl();
+const ACCESS_TOKEN_KEY = 'accessToken';
 
-// --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-// Ждем сигнала от main.js, что бэкенд запущен
+function persistAccessToken(token, rememberMe) {
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+
+    if (rememberMe) {
+        localStorage.setItem(ACCESS_TOKEN_KEY, token);
+        return;
+    }
+
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
 window.electronAPI.onBackendReady(async () => {
-    console.log("Получен сигнал 'backend-ready'. Проверяем токен...");
-    const savedToken = localStorage.getItem('accessToken');
+    const savedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
 
     if (savedToken) {
         messageDiv.textContent = 'Проверка сессии...';
@@ -18,23 +27,21 @@ window.electronAPI.onBackendReady(async () => {
             });
 
             if (response.ok) {
-                const userData = await response.json();
-                console.log(`Автоматический вход для ${userData.full_name}`);
+                await response.json();
+                sessionStorage.setItem(ACCESS_TOKEN_KEY, savedToken);
                 window.electronAPI.loginSuccess(savedToken);
             } else {
-                localStorage.removeItem('accessToken');
+                sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+                localStorage.removeItem(ACCESS_TOKEN_KEY);
                 messageDiv.textContent = '';
             }
         } catch (error) {
-            console.error("Ошибка при проверке токена:", error);
-            // Эта ошибка теперь будет появляться только если сервер действительно упал
-            messageDiv.textContent = 'Сервер недоступен.'; 
+            messageDiv.textContent = 'Сервер недоступен.';
             messageDiv.className = 'message error';
         }
     }
 });
 
-// --- 2. ОБРАБОТКА РУЧНОГО ВХОДА ---
 loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -53,21 +60,11 @@ loginForm.addEventListener('submit', async (event) => {
 
         if (response.ok) {
             const token = data.access_token;
-            
-            // --- 3. СОХРАНЕНИЕ ТОКЕНА ---
-            if (rememberMe) {
-                // Если "Запомнить меня" - сохраняем в localStorage
-                localStorage.setItem('accessToken', token);
-                console.log("Токен сохранен в localStorage.");
-            } else {
-                // Иначе - удаляем, чтобы сессия была временной
-                localStorage.removeItem('accessToken');
-            }
+            persistAccessToken(token, rememberMe);
 
-            messageDiv.textContent = `Добро пожаловать! Переходим на панель управления...`;
+            messageDiv.textContent = 'Добро пожаловать! Переходим на панель управления...';
             messageDiv.className = 'message success';
             window.electronAPI.loginSuccess(token);
-
         } else {
             messageDiv.textContent = data.detail || 'Произошла ошибка';
             messageDiv.className = 'message error';
@@ -75,6 +72,5 @@ loginForm.addEventListener('submit', async (event) => {
     } catch (error) {
         messageDiv.textContent = 'Не удалось подключиться к серверу.';
         messageDiv.className = 'message error';
-        console.error('Fetch error:', error);
     }
 });

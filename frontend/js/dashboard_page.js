@@ -6,6 +6,7 @@ let simChart = null;
 let comprehensiveData = null;
 let currentMonitoringView = 'chart';
 let simulatorScenarios = [];
+let hasRequestedInitialPatients = false;
 const patientStatusById = new Map();
 const STATUS_PRIORITY = ['status-attention', 'status-warning', 'status-ok'];
 
@@ -67,6 +68,37 @@ const simChartCanvas = document.getElementById('sim-glucose-chart');
 const simModelTypeEl = document.getElementById('sim-model-type');
 const simCgmSeedEl = document.getElementById('sim-cgm-seed');
 const API_BASE_URL = window.electronAPI.getApiBaseUrl();
+const ACCESS_TOKEN_KEY = 'accessToken';
+
+function getStoredAccessToken() {
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function setCurrentToken(token) {
+    currentToken = token || null;
+
+    if (!currentToken) {
+        sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+        return;
+    }
+
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, currentToken);
+}
+
+function ensureInitialPatientsLoaded() {
+    if (!currentToken || hasRequestedInitialPatients) return;
+    hasRequestedInitialPatients = true;
+    fetchAndRenderPatients();
+}
+
+async function initAuthToken() {
+    const tokenFromMain = window.electronAPI && typeof window.electronAPI.getUserToken === 'function'
+        ? await window.electronAPI.getUserToken()
+        : null;
+
+    setCurrentToken(tokenFromMain || getStoredAccessToken());
+    ensureInitialPatientsLoaded();
+}
 
 function readCssVar(name, fallback) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -181,10 +213,11 @@ function initZoomControls() {
 
 // --- Инициализация ---
 window.electronAPI.handleToken((token) => {
-    currentToken = token;
-    sessionStorage.setItem('accessToken', currentToken);
-    fetchAndRenderPatients();
+    setCurrentToken(token);
+    ensureInitialPatientsLoaded();
 });
+
+void initAuthToken();
 
 // --- ИНИЦИАЛИЗАЦИЯ ШИРИНЫ ПРИ ЗАГРУЗКЕ ---
 // Проверяем, есть ли сохраненная ширина
@@ -273,13 +306,21 @@ patientSearchInput.addEventListener('input', (e) => {
 
 // --- Функции ---
 async function apiFetch(endpoint, options = {}) {
-    const defaultOptions = {
+    const token = currentToken || getStoredAccessToken();
+    if (!token) {
+        throw new Error('Токен авторизации не найден.');
+    }
+
+    currentToken = token;
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentToken}`
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
         }
-    };
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...defaultOptions, ...options });
+    });
     if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || `Ошибка API: ${response.statusText}`);
