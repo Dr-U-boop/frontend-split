@@ -841,18 +841,84 @@ const interpretBtn = document.getElementById('interpret-btn');
 const confirmationFormEl = document.getElementById('confirmation-form');
 const parsedResultsEl = document.getElementById('parsed-results');
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function buildRecommendationCardHtml(item) {
+    const colorVariant = item.colorVariant || 'default';
+    const kindBadge = item.kind && item.kind !== 'free_text'
+        ? `<span class="recommendation-kind">${escapeHtml(item.kind)}</span>`
+        : '';
+    const scheduleHtml = item.scheduleText
+        ? `<p class="recommendation-meta recommendation-time">${escapeHtml(item.scheduleText)}</p>`
+        : '';
+    const primaryValueHtml = item.primaryValue
+        ? `<p class="recommendation-primary">${escapeHtml(item.primaryValue)}</p>`
+        : '';
+    const secondaryValueHtml = item.secondaryValue
+        ? `<p class="recommendation-secondary">${escapeHtml(item.secondaryValue)}</p>`
+        : '';
+    const conditionHtml = item.conditionText
+        ? `<p class="recommendation-meta">${escapeHtml(item.conditionText)}</p>`
+        : '';
+    const confidenceHtml = item.confidenceText
+        ? `<p class="recommendation-meta recommendation-confidence">${escapeHtml(item.confidenceText)}</p>`
+        : '';
+    const rawTextHtml = item.rawText
+        ? `
+            <details class="recommendation-raw">
+                <summary>Исходный текст</summary>
+                <p>${escapeHtml(item.rawText)}</p>
+            </details>`
+        : '';
+
+    return `
+        <article class="result-card recommendation-result-card recommendation-result-card--${escapeHtml(colorVariant)}" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}">
+            <div class="recommendation-header">
+                <h5>${escapeHtml(item.title || 'Рекомендация')}</h5>
+                ${kindBadge}
+            </div>
+            ${scheduleHtml}
+            ${primaryValueHtml}
+            ${secondaryValueHtml}
+            ${conditionHtml}
+            ${confidenceHtml}
+            ${rawTextHtml}
+        </article>
+    `;
+}
+
 interpretBtn.addEventListener('click', async () => {
     const text = recommendTextEl.value;
     if (!text || !currentPatientId) return;
 
     try {
-        const interpretation = await apiFetch(`/api/recommendations/interpret`, {
-            method: 'POST',
-            body: JSON.stringify({ text: text })
-        });
+        let interpretation;
+        try {
+            interpretation = await apiFetch(`/api/recommendations/interpret-multi`, {
+                method: 'POST',
+                body: JSON.stringify({ text: text })
+            });
+        } catch (multiError) {
+            console.warn('interpret-multi failed, fallback to interpret:', multiError);
+            interpretation = await apiFetch(`/api/recommendations/interpret`, {
+                method: 'POST',
+                body: JSON.stringify({ text: text })
+            });
+        }
 
-        // Отображаем форму для верификации
-        renderConfirmationForm(interpretation);
+        try {
+            renderConfirmationForm(interpretation);
+        } catch (renderError) {
+            console.error('Ошибка рендера интерпретации:', renderError, interpretation);
+            parsedResultsEl.innerHTML = `<p class="no-results">Получены данные, но не удалось отобразить результат. Проверьте формат ответа сервера.</p>`;
+        }
         confirmationFormEl.classList.remove('hidden');
 
     } catch (error) {
@@ -861,6 +927,14 @@ interpretBtn.addEventListener('click', async () => {
 });
 
 function renderConfirmationForm(data) {
+    const mapper = window.RecommendationViewModel;
+    const displayItems = mapper && typeof mapper.toDisplayItemsFromInterpretation === 'function'
+        ? mapper.toDisplayItemsFromInterpretation(data)
+        : [];
+    if (displayItems.length > 0) {
+        parsedResultsEl.innerHTML = displayItems.map(buildRecommendationCardHtml).join('');
+        return;
+    }
     parsedResultsEl.innerHTML = ''; // Очищаем старые результаты
 
     let htmlContent = '';
