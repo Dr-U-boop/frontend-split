@@ -4,6 +4,7 @@ let patients = [];
 let glucoseChart = null;
 let simChart = null;
 let comprehensiveData = null;
+let simulationChartState = null;
 let currentMonitoringView = 'chart';
 let simulatorScenarios = [];
 let hasRequestedInitialPatients = false;
@@ -15,7 +16,7 @@ const patientsListEl = document.getElementById('patients-list');
 const welcomeMessageEl = document.getElementById('welcome-message');
 const patientDetailsEl = document.getElementById('patient-details');
 const patientNameEl = document.getElementById('patient-name');
-const chartCanvas = document.getElementById('glucose-chart').getContext('2d');
+const chartContainerEl = document.getElementById('glucose-chart');
 const recommendationsListEl = document.getElementById('recommendations-list');
 const startDateInput = document.getElementById('start-date');
 const startTimeInput = document.getElementById('start-time');
@@ -36,6 +37,7 @@ const tableWrapperEl = document.getElementById('comprehensive-table-wrapper');
 const comprehensiveTableBodyEl = document.getElementById('comprehensive-table-body');
 const viewChartBtn = document.getElementById('view-chart-btn');
 const viewTableBtn = document.getElementById('view-table-btn');
+const monitoringChartActionsEl = document.getElementById('monitoring-chart-actions');
 const lastDayRangeBtn = document.getElementById('range-last-day-btn');
 const lastMonthRangeBtn = document.getElementById('range-last-month-btn');
 const lastThreeMonthsRangeBtn = document.getElementById('range-last-3-months-btn');
@@ -64,11 +66,36 @@ const simStatAvgEl = document.getElementById('sim-stat-avg');
 const simStatMinEl = document.getElementById('sim-stat-min');
 const simStatMaxEl = document.getElementById('sim-stat-max');
 const simStatTirEl = document.getElementById('sim-stat-tir');
-const simChartCanvas = document.getElementById('sim-glucose-chart');
+const simChartContainerEl = document.getElementById('sim-glucose-chart');
+const simChartActionsEl = document.getElementById('sim-chart-actions');
 const simModelTypeEl = document.getElementById('sim-model-type');
 const simCgmSeedEl = document.getElementById('sim-cgm-seed');
 const API_BASE_URL = window.electronAPI.getApiBaseUrl();
 const ACCESS_TOKEN_KEY = 'accessToken';
+const chartPanelState = {
+    monitoring: {
+        selectZoomActive: false
+    },
+    simulation: {
+        selectZoomActive: false
+    }
+};
+const chartInteractionState = {
+    monitoring: {
+        dragBound: false,
+        selecting: false,
+        startX: 0,
+        overlayEl: null,
+        selectionBoxEl: null
+    },
+    simulation: {
+        dragBound: false,
+        selecting: false,
+        startX: 0,
+        overlayEl: null,
+        selectionBoxEl: null
+    }
+};
 
 function getStoredAccessToken() {
     return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -109,7 +136,703 @@ function getChartThemeConfig() {
     return {
         textPrimary: readCssVar('--color-text-primary', '#2f3b36'),
         textSecondary: readCssVar('--color-text-secondary', '#6c7773'),
+        border: readCssVar('--color-border', '#d8e0ea'),
+        surface: readCssVar('--color-surface', '#ffffff'),
+        surfaceSoft: readCssVar('--color-surface-soft', '#f5f7fa'),
+        primary: readCssVar('--color-primary', '#2f6fed'),
+        primarySoft: readCssVar('--color-primary-soft', 'rgba(47, 111, 237, 0.18)'),
+        accentGreen: readCssVar('--color-accent-green', '#2e8b57'),
+        accentRed: '#e04343',
+        accentPink: '#d81b84',
+        tooltipShadow: readCssVar('--shadow-soft', '0 12px 32px rgba(16, 24, 40, 0.12)'),
         grid: readCssVar('--chart-grid-color', 'rgba(70, 89, 82, 0.14)')
+    };
+}
+
+function createManagedChart(container) {
+    if (!container || !window.EChartsBridge) return null;
+    return window.EChartsBridge.createManagedChart(container, {
+        renderer: 'canvas',
+        useDirtyRect: true
+    });
+}
+
+function ensureGlucoseChart() {
+    if (!glucoseChart) {
+        glucoseChart = createManagedChart(chartContainerEl);
+        bindDragZoom(glucoseChart, 'monitoring', monitoringChartActionsEl, chartContainerEl);
+    }
+    return glucoseChart;
+}
+
+function ensureSimulationChart() {
+    if (!simChart) {
+        simChart = createManagedChart(simChartContainerEl);
+        bindDragZoom(simChart, 'simulation', simChartActionsEl, simChartContainerEl);
+    }
+    return simChart;
+}
+
+function formatChartDateTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function formatChartTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function formatNumericValue(value, digits = 1) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '-';
+    return numeric.toFixed(digits);
+}
+
+function toTimeSeries(points) {
+    return (points || [])
+        .map((point) => {
+            const xValue = point?.x ?? point?.timestamp ?? point?.time ?? point?.date ?? point?.[0];
+            const yValue = point?.y ?? point?.value ?? point?.[1];
+            const timestamp = new Date(xValue).getTime();
+            const numericValue = Number(yValue);
+            if (!Number.isFinite(timestamp) || !Number.isFinite(numericValue)) return null;
+            return [timestamp, numericValue];
+        })
+        .filter(Boolean)
+        .sort((a, b) => a[0] - b[0]);
+}
+
+function toSimulationSeries(time, glucose) {
+    return (time || [])
+        .map((timePoint, index) => {
+            const xValue = Number(timePoint);
+            const yValue = Number(glucose?.[index]);
+            if (!Number.isFinite(xValue) || !Number.isFinite(yValue)) return null;
+            return [xValue, yValue];
+        })
+        .filter(Boolean)
+        .sort((a, b) => a[0] - b[0]);
+}
+
+function createEmptyChartGraphic(theme, text) {
+    return [{
+        type: 'text',
+        left: 'center',
+        top: 'middle',
+        silent: true,
+        style: {
+            text,
+            fill: theme.textSecondary,
+            fontSize: 14,
+            fontWeight: 500
+        }
+    }];
+}
+
+function setChartSelectZoomState(chartKey, isActive) {
+    if (!chartPanelState[chartKey]) return;
+    chartPanelState[chartKey].selectZoomActive = Boolean(isActive);
+    const container = chartKey === 'monitoring' ? chartContainerEl : simChartContainerEl;
+    container?.classList.toggle('is-selection-armed', chartPanelState[chartKey].selectZoomActive);
+    const overlayEl = chartInteractionState[chartKey]?.overlayEl;
+    overlayEl?.classList.toggle('is-armed', chartPanelState[chartKey].selectZoomActive);
+}
+
+function syncChartActionPanel(panelElement, chartKey) {
+    if (!panelElement || !chartPanelState[chartKey]) return;
+    const toggleButton = panelElement.querySelector('[data-chart-action="selectZoom"]');
+    if (!toggleButton) return;
+    toggleButton.classList.toggle('is-active', chartPanelState[chartKey].selectZoomActive);
+    toggleButton.setAttribute('aria-pressed', chartPanelState[chartKey].selectZoomActive ? 'true' : 'false');
+}
+
+function resetChartPanelState(chartKey, panelElement) {
+    setChartSelectZoomState(chartKey, false);
+    syncChartActionPanel(panelElement, chartKey);
+}
+
+function bindChartActionPanel(panelElement, chartKey, getChart) {
+    if (!panelElement) return;
+    syncChartActionPanel(panelElement, chartKey);
+
+    panelElement.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-chart-action]');
+        if (!button) return;
+
+        const chart = getChart();
+        if (!chart) return;
+
+        const action = button.dataset.chartAction;
+        if (action === 'selectZoom') {
+            const nextState = !chartPanelState[chartKey].selectZoomActive;
+            setChartSelectZoomState(chartKey, nextState);
+            syncChartActionPanel(panelElement, chartKey);
+            return;
+        }
+
+        if (action === 'resetZoom') {
+            chart.dispatchAction({
+                type: 'dataZoom',
+                start: 0,
+                end: 100
+            });
+            resetChartPanelState(chartKey, panelElement);
+            return;
+        }
+
+        if (action === 'restoreView') {
+            chart.dispatchAction({ type: 'restore' });
+            resetChartPanelState(chartKey, panelElement);
+        }
+    });
+}
+
+function ensureSelectionOverlay(container, chartKey) {
+    const state = chartInteractionState[chartKey];
+    if (state.overlayEl) return state.overlayEl;
+
+    const overlayEl = document.createElement('div');
+    overlayEl.className = 'chart-selection-overlay';
+    const selectionBoxEl = document.createElement('div');
+    selectionBoxEl.className = 'chart-selection-box';
+    overlayEl.appendChild(selectionBoxEl);
+    const overlayParent = container.parentElement || container;
+    overlayParent.appendChild(overlayEl);
+    state.overlayEl = overlayEl;
+    state.selectionBoxEl = selectionBoxEl;
+    return overlayEl;
+}
+
+function hideSelectionOverlay(chartKey) {
+    const state = chartInteractionState[chartKey];
+    const overlayEl = state?.overlayEl;
+    const selectionBoxEl = state?.selectionBoxEl;
+    overlayEl?.classList.remove('is-armed');
+    if (!selectionBoxEl) return;
+    selectionBoxEl.style.display = 'none';
+    selectionBoxEl.style.left = '0px';
+    selectionBoxEl.style.width = '0px';
+}
+
+function updateSelectionOverlay(chartKey, startX, currentX) {
+    const selectionBoxEl = chartInteractionState[chartKey]?.selectionBoxEl;
+    if (!selectionBoxEl) return;
+    selectionBoxEl.style.display = 'block';
+    const left = Math.min(startX, currentX);
+    const width = Math.max(2, Math.abs(currentX - startX));
+    selectionBoxEl.style.left = `${left}px`;
+    selectionBoxEl.style.width = `${width}px`;
+}
+
+function bindDragZoom(chart, chartKey, panelElement, container) {
+    if (!chart || !container || chartInteractionState[chartKey]?.dragBound) return;
+
+    const overlayEl = ensureSelectionOverlay(container, chartKey);
+    const state = chartInteractionState[chartKey];
+
+    overlayEl.addEventListener('mousedown', (event) => {
+        if (!chartPanelState[chartKey].selectZoomActive) return;
+
+        const instance = chart.getInstance();
+        const rect = overlayEl.getBoundingClientRect();
+        const localX = event.clientX - rect.left;
+        const localY = event.clientY - rect.top;
+
+        if (!instance.containPixel({ gridIndex: 0 }, [localX, localY])) {
+            return;
+        }
+
+        state.selecting = true;
+        state.startX = localX;
+        updateSelectionOverlay(chartKey, localX, localX);
+        event.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (event) => {
+        if (!state.selecting) return;
+        const rect = overlayEl.getBoundingClientRect();
+        const boundedX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+        updateSelectionOverlay(chartKey, state.startX, boundedX);
+    });
+
+    window.addEventListener('mouseup', (event) => {
+        if (!state.selecting) return;
+
+        state.selecting = false;
+        const rect = overlayEl.getBoundingClientRect();
+        const endX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+        const pixelDelta = Math.abs(endX - state.startX);
+
+        if (pixelDelta < 6) {
+            hideSelectionOverlay(chartKey);
+            resetChartPanelState(chartKey, panelElement);
+            return;
+        }
+
+        const instance = chart.getInstance();
+        const startValueRaw = instance.convertFromPixel({ xAxisIndex: 0 }, state.startX);
+        const endValueRaw = instance.convertFromPixel({ xAxisIndex: 0 }, endX);
+        const startValue = Number(startValueRaw);
+        const endValue = Number(endValueRaw);
+
+        hideSelectionOverlay(chartKey);
+
+        if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) {
+            resetChartPanelState(chartKey, panelElement);
+            return;
+        }
+
+        chart.dispatchAction({
+            type: 'dataZoom',
+            startValue: Math.min(startValue, endValue),
+            endValue: Math.max(startValue, endValue)
+        });
+        resetChartPanelState(chartKey, panelElement);
+    });
+
+    chartInteractionState[chartKey].dragBound = true;
+}
+
+function buildComprehensiveTooltip(params) {
+    if (!Array.isArray(params) || params.length === 0) return '';
+    const timestamp = params[0].axisValue;
+    const rows = params
+        .filter((item) => Array.isArray(item.value) && Number.isFinite(Number(item.value[1])))
+        .map((item) => {
+            const unit = item.seriesName.includes('Углеводы')
+                ? 'г'
+                : item.seriesName.includes('Инсулин')
+                    ? 'ЕД'
+                    : 'ммоль/л';
+            return `${item.marker}${item.seriesName}: <strong>${formatNumericValue(item.value[1])} ${unit}</strong>`;
+        });
+
+    return [formatChartDateTime(timestamp), ...rows].join('<br>');
+}
+
+function buildSimulationTooltip(params) {
+    if (!Array.isArray(params) || params.length === 0) return '';
+    const point = params[0];
+    const value = Array.isArray(point.value) ? point.value[1] : point.value;
+    const time = Array.isArray(point.value) ? point.value[0] : point.axisValue;
+    return [
+        `Время: ${formatNumericValue(time, 0)} мин`,
+        `${point.marker}${point.seriesName}: <strong>${formatNumericValue(value)} ммоль/л</strong>`
+    ].join('<br>');
+}
+
+function buildComprehensiveChartOption(apiData) {
+    const theme = getChartThemeConfig();
+    const glucoseSeries = toTimeSeries(apiData?.glucose);
+    const carbsSeries = toTimeSeries(apiData?.carbs);
+    const insulinSeries = toTimeSeries(apiData?.insulin);
+    const hasData = glucoseSeries.length > 0 || carbsSeries.length > 0 || insulinSeries.length > 0;
+    const compactSymbols = glucoseSeries.length + insulinSeries.length > 240;
+
+    return {
+        backgroundColor: 'transparent',
+        animation: true,
+        animationDuration: 220,
+        animationDurationUpdate: 180,
+        textStyle: {
+            color: theme.textPrimary
+        },
+        grid: {
+            left: 78,
+            right: 92,
+            top: 72,
+            bottom: 104,
+            containLabel: true
+        },
+        legend: {
+            top: 10,
+            left: 10,
+            itemWidth: 14,
+            itemHeight: 8,
+            textStyle: {
+                color: theme.textPrimary,
+                fontWeight: 500
+            }
+        },
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            axisPointer: {
+                type: 'cross',
+                snap: false,
+                lineStyle: {
+                    color: theme.textSecondary,
+                    opacity: 0.35
+                },
+                label: {
+                    backgroundColor: theme.surface
+                }
+            },
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            borderWidth: 1,
+            textStyle: {
+                color: theme.textPrimary
+            },
+            extraCssText: `box-shadow:${theme.tooltipShadow}; border-radius: 12px;`,
+            formatter: buildComprehensiveTooltip
+        },
+        dataZoom: [
+            {
+                type: 'inside',
+                xAxisIndex: 0,
+                filterMode: 'none',
+                zoomOnMouseWheel: true,
+                moveOnMouseWheel: false,
+                moveOnMouseMove: true,
+                throttle: 50,
+                minValueSpan: 30 * 60 * 1000
+            },
+            {
+                type: 'slider',
+                xAxisIndex: 0,
+                filterMode: 'none',
+                height: 28,
+                bottom: 24,
+                brushSelect: false,
+                borderColor: theme.border,
+                backgroundColor: theme.surfaceSoft,
+                fillerColor: theme.primarySoft,
+                moveHandleSize: 14,
+                dataBackground: {
+                    lineStyle: {
+                        color: theme.primary,
+                        opacity: 0.55
+                    },
+                    areaStyle: {
+                        color: theme.primarySoft,
+                        opacity: 0.2
+                    }
+                },
+                textStyle: {
+                    color: theme.textSecondary
+                },
+                handleStyle: {
+                    color: theme.primary,
+                    borderColor: theme.primary
+                }
+            }
+        ],
+        xAxis: {
+            type: 'time',
+            boundaryGap: ['2%', '2%'],
+            axisLine: {
+                lineStyle: {
+                    color: theme.border
+                }
+            },
+            axisLabel: {
+                color: theme.textSecondary,
+                hideOverlap: true,
+                formatter: (value) => formatChartTime(value)
+            },
+            splitLine: {
+                show: true,
+                lineStyle: {
+                    color: theme.grid
+                }
+            },
+            minorSplitLine: {
+                show: false
+            }
+        },
+        yAxis: [
+            {
+                type: 'value',
+                name: 'Глюкоза (ммоль/л)',
+                position: 'left',
+                nameLocation: 'middle',
+                nameRotate: 90,
+                nameGap: 56,
+                nameTextStyle: {
+                    color: theme.textPrimary,
+                    fontWeight: 600,
+                    padding: [0, 0, 0, 0]
+                },
+                axisLabel: {
+                    color: theme.textSecondary
+                },
+                axisLine: {
+                    show: true,
+                    lineStyle: {
+                        color: theme.border
+                    }
+                },
+                splitLine: {
+                    lineStyle: {
+                        color: theme.grid
+                    }
+                },
+                min: (value) => {
+                    const boundedMin = Math.floor((value.min - 0.5) * 2) / 2;
+                    return Math.max(0, boundedMin);
+                }
+            },
+            {
+                type: 'value',
+                name: 'Углеводы (г) / Инсулин (ЕД)',
+                position: 'right',
+                min: 0,
+                nameLocation: 'middle',
+                nameRotate: 270,
+                nameGap: 66,
+                nameTextStyle: {
+                    color: theme.textPrimary,
+                    fontWeight: 600,
+                    padding: [0, 0, 0, 0]
+                },
+                axisLabel: {
+                    color: theme.textSecondary
+                },
+                axisLine: {
+                    show: true,
+                    lineStyle: {
+                        color: theme.border
+                    }
+                },
+                splitLine: {
+                    show: false
+                }
+            }
+        ],
+        graphic: hasData ? [] : createEmptyChartGraphic(theme, 'Нет данных за выбранный период'),
+        series: [
+            {
+                name: 'Глюкоза',
+                type: 'line',
+                yAxisIndex: 0,
+                data: glucoseSeries,
+                smooth: 0.22,
+                showSymbol: !compactSymbols,
+                symbol: 'circle',
+                symbolSize: 6,
+                sampling: 'lttb',
+                lineStyle: {
+                    width: 2.5,
+                    color: theme.primary
+                },
+                itemStyle: {
+                    color: theme.primary
+                },
+                emphasis: {
+                    focus: 'series'
+                }
+            },
+            {
+                name: 'Углеводы',
+                type: 'bar',
+                yAxisIndex: 1,
+                data: carbsSeries,
+                barMaxWidth: 18,
+                itemStyle: {
+                    color: theme.accentRed,
+                    opacity: 0.84,
+                    borderRadius: [5, 5, 0, 0]
+                },
+                emphasis: {
+                    focus: 'series'
+                }
+            },
+            {
+                name: 'Инсулин',
+                type: 'line',
+                yAxisIndex: 1,
+                data: insulinSeries,
+                smooth: 0.18,
+                showSymbol: !compactSymbols,
+                symbol: 'circle',
+                symbolSize: 5,
+                sampling: 'lttb',
+                lineStyle: {
+                    width: 2,
+                    color: theme.accentPink
+                },
+                itemStyle: {
+                    color: theme.accentPink
+                },
+                emphasis: {
+                    focus: 'series'
+                }
+            }
+        ]
+    };
+}
+
+function buildSimulationChartOption(time, glucose) {
+    const theme = getChartThemeConfig();
+    const data = toSimulationSeries(time, glucose);
+    const hasData = data.length > 0;
+
+    return {
+        backgroundColor: 'transparent',
+        animation: true,
+        animationDuration: 180,
+        animationDurationUpdate: 140,
+        textStyle: {
+            color: theme.textPrimary
+        },
+        grid: {
+            left: 82,
+            right: 42,
+            top: 72,
+            bottom: 100,
+            containLabel: true
+        },
+        legend: {
+            top: 10,
+            left: 10,
+            textStyle: {
+                color: theme.textPrimary
+            }
+        },
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            axisPointer: {
+                type: 'line',
+                lineStyle: {
+                    color: theme.textSecondary,
+                    opacity: 0.35
+                }
+            },
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            borderWidth: 1,
+            textStyle: {
+                color: theme.textPrimary
+            },
+            extraCssText: `box-shadow:${theme.tooltipShadow}; border-radius: 12px;`,
+            formatter: buildSimulationTooltip
+        },
+        dataZoom: [
+            {
+                type: 'inside',
+                xAxisIndex: 0,
+                filterMode: 'none',
+                zoomOnMouseWheel: true,
+                moveOnMouseWheel: false,
+                moveOnMouseMove: true,
+                throttle: 50,
+                minSpan: 10
+            },
+            {
+                type: 'slider',
+                xAxisIndex: 0,
+                filterMode: 'none',
+                height: 28,
+                bottom: 18,
+                brushSelect: false,
+                borderColor: theme.border,
+                backgroundColor: theme.surfaceSoft,
+                fillerColor: theme.primarySoft,
+                moveHandleSize: 14,
+                dataBackground: {
+                    lineStyle: {
+                        color: theme.primary,
+                        opacity: 0.55
+                    },
+                    areaStyle: {
+                        color: theme.primarySoft,
+                        opacity: 0.2
+                    }
+                },
+                textStyle: {
+                    color: theme.textSecondary
+                },
+                handleStyle: {
+                    color: theme.primary,
+                    borderColor: theme.primary
+                }
+            }
+        ],
+        xAxis: {
+            type: 'value',
+            name: 'Время, мин',
+            nameLocation: 'middle',
+            nameGap: 34,
+            axisLine: {
+                lineStyle: {
+                    color: theme.border
+                }
+            },
+            axisLabel: {
+                color: theme.textSecondary
+            },
+            splitLine: {
+                lineStyle: {
+                    color: theme.grid
+                }
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Глюкоза (ммоль/л)',
+            nameLocation: 'middle',
+            nameRotate: 90,
+            nameGap: 58,
+            nameTextStyle: {
+                color: theme.textPrimary,
+                fontWeight: 600,
+                padding: [0, 0, 0, 0]
+            },
+            axisLine: {
+                show: true,
+                lineStyle: {
+                    color: theme.border
+                }
+            },
+            axisLabel: {
+                color: theme.textSecondary
+            },
+            splitLine: {
+                lineStyle: {
+                    color: theme.grid
+                }
+            },
+            min: (value) => Math.max(0, Math.floor((value.min - 0.5) * 2) / 2)
+        },
+        graphic: hasData ? [] : createEmptyChartGraphic(theme, 'Симуляция не запускалась'),
+        series: [
+            {
+                name: 'Глюкоза',
+                type: 'line',
+                data,
+                smooth: 0.18,
+                showSymbol: data.length <= 160,
+                symbolSize: 5,
+                sampling: 'lttb',
+                lineStyle: {
+                    width: 2.4,
+                    color: theme.accentGreen
+                },
+                itemStyle: {
+                    color: theme.accentGreen
+                },
+                areaStyle: {
+                    color: theme.primarySoft,
+                    opacity: 0.16
+                }
+            }
+        ]
     };
 }
 
@@ -178,6 +901,9 @@ async function applyZoomPercent(percent, persist = true) {
     updateZoomResetLabel();
     if (glucoseChart) {
         setTimeout(() => glucoseChart.resize(), 0);
+    }
+    if (simChart) {
+        setTimeout(() => simChart.resize(), 0);
     }
 }
 
@@ -654,6 +1380,10 @@ function updateMonitoringViewUI() {
     const isChart = currentMonitoringView === 'chart';
     chartWrapperEl.classList.toggle('hidden', !isChart);
     tableWrapperEl.classList.toggle('hidden', isChart);
+    if (monitoringChartActionsEl) {
+        monitoringChartActionsEl.classList.toggle('hidden', !isChart);
+        monitoringChartActionsEl.setAttribute('aria-hidden', isChart ? 'false' : 'true');
+    }
     viewChartBtn.classList.toggle('active', isChart);
     viewTableBtn.classList.toggle('active', !isChart);
 
@@ -671,70 +1401,10 @@ function renderComprehensiveView() {
 }
 
 function renderComprehensiveChart(apiData) {
-    const theme = getChartThemeConfig();
-
-    if (glucoseChart) glucoseChart.destroy();
-    glucoseChart = new Chart(chartCanvas, {
-        data: {
-            datasets: [
-                { type: 'line', label: 'Глюкоза (ммоль/л)', data: apiData.glucose, borderColor: 'rgb(0, 123, 255)', backgroundColor: 'rgba(0, 123, 255, 0.5)', yAxisID: 'yGlucose', tension: 0.5, pointRadius: 2, pointHoverRadius: 5 },
-                { type: 'bar', label: 'Углеводы (г)', data: apiData.carbs, backgroundColor: 'rgba(255, 7, 7, 0.5)', borderColor: 'rgb(255, 7, 7)', borderWidth: 2, borderRadius: 5, borderSkipped: false, yAxisID: 'yEvents' },
-                { type: 'line', label: 'Инсулин (ЕД)', data: apiData.insulin, borderColor: 'rgba(255, 5, 201, 0.72)', yAxisID: 'yEvents', tension: 0.5 }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                decimation: { enabled: true, algorithm: 'lttb', samples: 200, threshold: 500 },
-                legend: {
-                    labels: {
-                        color: theme.textPrimary
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        tooltipFormat: 'dd.MM.yyyy HH:mm',
-                        displayFormats: {
-                            minute: 'HH:mm',
-                            hour: 'HH:mm',
-                            day: 'dd.MM HH:mm'
-                        }
-                    },
-                    ticks: {
-                        color: theme.textSecondary,
-                        callback: (value) => {
-                            const date = new Date(value);
-                            if (Number.isNaN(date.getTime())) return value;
-                            return date.toLocaleTimeString('ru-RU', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            });
-                        }
-                    },
-                    grid: { color: theme.grid }
-                },
-                yGlucose: {
-                    position: 'left',
-                    title: { display: true, text: 'Глюкоза (ммоль/л)', color: theme.textPrimary },
-                    ticks: { color: theme.textSecondary },
-                    grid: { color: theme.grid }
-                },
-                yEvents: {
-                    position: 'right',
-                    title: { display: true, text: 'Углеводы (г) / Инсулин (ЕД)', color: theme.textPrimary },
-                    ticks: { color: theme.textSecondary },
-                    grid: { drawOnChartArea: false, color: theme.grid },
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-    glucoseChart.resize();
+    const chart = ensureGlucoseChart();
+    if (!chart) return;
+    chart.setOption(buildComprehensiveChartOption(apiData));
+    chart.resize();
 }
 
 function renderRecommendations(data) {
@@ -800,6 +1470,8 @@ if (themeToggleBtn) {
     updateThemeToggleLabel();
 }
 initZoomControls();
+bindChartActionPanel(monitoringChartActionsEl, 'monitoring', ensureGlucoseChart);
+bindChartActionPanel(simChartActionsEl, 'simulation', ensureSimulationChart);
 
 updateChartBtn.addEventListener('click', updateComprehensiveChart);
 resetChartBtn.addEventListener('click', () => {
@@ -1004,34 +1676,11 @@ function renderScenarioSelect() {
 }
 
 function drawSimulationChart(time, glucose) {
-    if (!simChartCanvas) return;
-    const labels = time.map((t) => Number(t));
-    const data = glucose.map((v) => Number(v));
-    if (simChart) simChart.destroy();
-
-    simChart = new Chart(simChartCanvas.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: 'Глюкоза (ммоль/л)',
-                    data,
-                    borderWidth: 2,
-                    pointRadius: 1,
-                    borderColor: '#2e8b57'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { title: { display: true, text: 'Время, мин' } },
-                y: { title: { display: true, text: 'Глюкоза' } }
-            }
-        }
-    });
+    const chart = ensureSimulationChart();
+    if (!chart) return;
+    simulationChartState = { time: [...(time || [])], glucose: [...(glucose || [])] };
+    chart.setOption(buildSimulationChartOption(time, glucose));
+    chart.resize();
 }
 
 function resetSimulationStatistics() {
@@ -1256,6 +1905,21 @@ resetSimulationStatistics();
 
 window.addEventListener('app-theme-changed', () => {
     updateThemeToggleLabel();
-    if (!comprehensiveData) return;
-    renderComprehensiveChart(comprehensiveData);
+    if (comprehensiveData) {
+        renderComprehensiveChart(comprehensiveData);
+    }
+    if (simulationChartState) {
+        drawSimulationChart(simulationChartState.time, simulationChartState.glucose);
+    }
+});
+
+window.addEventListener('beforeunload', () => {
+    if (glucoseChart) {
+        glucoseChart.dispose();
+        glucoseChart = null;
+    }
+    if (simChart) {
+        simChart.dispose();
+        simChart = null;
+    }
 });

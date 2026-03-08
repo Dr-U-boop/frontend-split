@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Панель управления</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/style_wow.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
@@ -75,8 +75,16 @@
                                 <button type="button" id="view-table-btn" class="view-btn">Таблица</button>
                             </div>
                         </div>
+                        <div class="chart-action-panel" id="monitoring-chart-actions" aria-label="Действия графика мониторинга">
+                            <div class="chart-action-panel__title">Навигация по графику</div>
+                            <div class="chart-action-panel__buttons">
+                                <button type="button" class="chart-action-btn chart-action-btn--toggle" data-chart-action="selectZoom">Выделить область</button>
+                                <button type="button" class="chart-action-btn" data-chart-action="resetZoom">Сбросить zoom</button>
+                                <button type="button" class="chart-action-btn" data-chart-action="restoreView">Сбросить обзор</button>
+                            </div>
+                        </div>
                         <div class="chart-wrapper">
-                            <canvas id="glucose-chart"></canvas>
+                            <div id="glucose-chart" class="echarts-host" role="img" aria-label="График мониторинга глюкозы"></div>
                         </div>
                         <div class="table-wrapper hidden" id="comprehensive-table-wrapper">
                             <table class="data-table">
@@ -220,8 +228,16 @@
                                 <div class="stats-card sim-stats-card"><span>В диапазоне 3.9-10.0</span><strong id="sim-stat-tir">-</strong></div>
                             </div>
                         </div>
+                        <div class="chart-action-panel" id="sim-chart-actions" aria-label="Действия графика симуляции">
+                            <div class="chart-action-panel__title">Навигация по графику</div>
+                            <div class="chart-action-panel__buttons">
+                                <button type="button" class="chart-action-btn chart-action-btn--toggle" data-chart-action="selectZoom">Выделить область</button>
+                                <button type="button" class="chart-action-btn" data-chart-action="resetZoom">Сбросить zoom</button>
+                                <button type="button" class="chart-action-btn" data-chart-action="restoreView">Сбросить обзор</button>
+                            </div>
+                        </div>
                         <div class="chart-wrapper sim-chart-wrapper">
-                            <canvas id="sim-glucose-chart"></canvas>
+                            <div id="sim-glucose-chart" class="echarts-host" role="img" aria-label="График симуляции глюкозы"></div>
                         </div>
                     </div>
                 </div>
@@ -229,9 +245,8 @@
         </main>
     </div>
 
-    <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
-    <script src="../node_modules/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <!--<script src="chartjs-plugin-decimation.min.js"></script>-->
+    <script src="../node_modules/echarts/dist/echarts.min.js"></script>
+    <script src="../js/echarts_bridge.js"></script>
     <script src="../js/theme_manager.js"></script>
     <script src="../js/recommendations/recommendation_view_model.js"></script>
     <script src="../js/dashboard_page.js"></script>
